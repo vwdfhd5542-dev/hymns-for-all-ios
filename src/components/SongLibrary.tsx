@@ -14,6 +14,16 @@ interface SongLibraryProps {
 
 const COLLECTIONS = ["Toate", "Speranța", "Boanerges", "Hymns", "Grupul Eldad", "Elim Harmony"];
 
+function normalize(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove diacritics
+    .replace(/[.,;:!?'"„""''«»\-–—()[\]{}]/g, "") // remove punctuation
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function getSongKey(song: Song): string {
   const match = song.lyrics.match(/\[([A-G][#b]?m?)/);
   return match ? match[1] : "?";
