@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { ChevronLeft, Loader2, Guitar, Play, Square } from "lucide-react";
 import { Song } from "@/data/songs";
 import { supabase } from "@/integrations/supabase/client";
