@@ -12,7 +12,7 @@ interface SongLibraryProps {
   onAddSong?: () => void;
 }
 
-const COLLECTIONS = ["Toate", "Speranța", "Boanerges", "Hymns"];
+const COLLECTIONS = ["Toate", "Speranța", "Boanerges", "Hymns", "Grupul Eldad", "Elim Harmony"];
 
 function getSongKey(song: Song): string {
   const match = song.lyrics.match(/\[([A-G][#b]?m?)/);
