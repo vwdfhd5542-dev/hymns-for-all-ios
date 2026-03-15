@@ -1,30 +1,41 @@
 import { useState, useRef, useCallback } from "react";
+import * as Tone from "tone";
 
-// Standard guitar tuning - open string frequencies (Hz)
+// Standard guitar tuning frequencies (Hz)
 const OPEN_STRINGS = [
-  329.63, // e4 (1st string - high e)
+  329.63, // e4 (1st string)
   246.94, // B3
   196.00, // G3
   146.83, // D3
   110.00, // A2
-  82.41,  // E2 (6th string - low E)
+  82.41,  // E2 (6th string)
 ];
 
 function fretToFreq(stringIndex: number, fret: number): number {
   return OPEN_STRINGS[stringIndex] * Math.pow(2, fret / 12);
 }
 
-interface TabNote {
-  time: number;
+export interface TabNote {
+  time: number;      // beat-relative time in columns
   freq: number;
   duration: number;
+  stringIndex: number;
+  column: number;     // original column index for highlight sync
+  groupIndex: number; // which tab group this belongs to
 }
 
-function parseTablature(tab: string): TabNote[] {
+export interface ParsedTablature {
+  notes: TabNote[];
+  totalColumns: number;
+  groups: { startCol: number; endCol: number; lineStart: number }[];
+}
+
+export function parseTablature(tab: string): ParsedTablature {
   const lines = tab.split("\n");
   const notes: TabNote[] = [];
+  const groups: { startCol: number; endCol: number; lineStart: number }[] = [];
   let i = 0;
-  let groupTimeOffset = 0;
+  let globalColOffset = 0;
 
   while (i < lines.length) {
     const group: { label: string; content: string }[] = [];
@@ -45,7 +56,8 @@ function parseTablature(tab: string): TabNote[] {
 
     if (group.length === 6) {
       const maxLen = Math.max(...group.map(g => g.content.length));
-      const tempo = 0.15;
+      const groupIdx = groups.length;
+      groups.push({ startCol: globalColOffset, endCol: globalColOffset + maxLen - 1, lineStart: i });
 
       for (let col = 0; col < maxLen; col++) {
         for (let str = 0; str < 6; str++) {
@@ -63,13 +75,16 @@ function parseTablature(tab: string): TabNote[] {
           if (isNaN(fret) || fret >= 25) continue;
 
           notes.push({
-            time: groupTimeOffset + col * tempo,
+            time: globalColOffset + col,
             freq: fretToFreq(str, fret),
             duration: 0.45,
+            stringIndex: str,
+            column: globalColOffset + col,
+            groupIndex: groupIdx,
           });
         }
       }
-      groupTimeOffset += maxLen * tempo + 0.05;
+      globalColOffset += maxLen;
       i = j;
     } else {
       i = j > i ? j : i + 1;
@@ -77,155 +92,140 @@ function parseTablature(tab: string): TabNote[] {
   }
 
   notes.sort((a, b) => a.time - b.time);
-  return notes;
-}
-
-// Generate WAV audio buffer from notes
-function generateWavBuffer(notes: TabNote[], sampleRate: number, tempoScale: number): ArrayBuffer {
-  if (notes.length === 0) return new ArrayBuffer(0);
-
-  const totalDuration = Math.max(...notes.map(n => (n.time + n.duration) * tempoScale)) + 0.3;
-  const numSamples = Math.ceil(totalDuration * sampleRate);
-  const buffer = new Float32Array(numSamples);
-
-  for (const note of notes) {
-    const startSample = Math.floor(note.time * tempoScale * sampleRate);
-    const durSamples = Math.floor(note.duration * tempoScale * sampleRate);
-    const freq = note.freq;
-
-    for (let s = 0; s < durSamples && startSample + s < numSamples; s++) {
-      const t = s / sampleRate;
-      const progress = s / durSamples;
-
-      // Pluck envelope: fast attack, exponential decay
-      const attack = Math.min(t / 0.005, 1);
-      const decay = Math.exp(-progress * 5);
-      const envelope = attack * decay;
-
-      // Guitar-like timbre: fundamental + harmonics with decay
-      const fundamental = Math.sin(2 * Math.PI * freq * t);
-      const harmonic2 = 0.5 * Math.sin(2 * Math.PI * freq * 2 * t) * Math.exp(-progress * 7);
-      const harmonic3 = 0.25 * Math.sin(2 * Math.PI * freq * 3 * t) * Math.exp(-progress * 9);
-
-      const sample = envelope * (fundamental + harmonic2 + harmonic3) * 0.15;
-      buffer[startSample + s] += sample;
-    }
-  }
-
-  // Clamp
-  for (let i = 0; i < numSamples; i++) {
-    buffer[i] = Math.max(-1, Math.min(1, buffer[i]));
-  }
-
-  // Encode WAV
-  const wavBuffer = new ArrayBuffer(44 + numSamples * 2);
-  const view = new DataView(wavBuffer);
-
-  // WAV header
-  const writeString = (offset: number, str: string) => {
-    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
-  };
-
-  writeString(0, "RIFF");
-  view.setUint32(4, 36 + numSamples * 2, true);
-  writeString(8, "WAVE");
-  writeString(12, "fmt ");
-  view.setUint32(16, 16, true); // chunk size
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, 1, true); // mono
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true); // byte rate
-  view.setUint16(32, 2, true); // block align
-  view.setUint16(34, 16, true); // bits per sample
-  writeString(36, "data");
-  view.setUint32(40, numSamples * 2, true);
-
-  // Convert float to int16
-  for (let i = 0; i < numSamples; i++) {
-    const s = Math.max(-1, Math.min(1, buffer[i]));
-    view.setInt16(44 + i * 2, s * 0x7FFF, true);
-  }
-
-  return wavBuffer;
+  return { notes, totalColumns: globalColOffset, groups };
 }
 
 export function useTablaturePlayer() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [currentColumn, setCurrentColumn] = useState(-1);
+  const synthRef = useRef<Tone.PolySynth | null>(null);
+  const reverbRef = useRef<Tone.Reverb | null>(null);
+  const scheduledRef = useRef<number[]>([]);
   const timerRef = useRef<number>();
-  const urlRef = useRef<string>("");
+  const startTimeRef = useRef(0);
+  const totalDurRef = useRef(0);
 
-  const stop = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current = null;
-    }
-    if (urlRef.current) {
-      URL.revokeObjectURL(urlRef.current);
-      urlRef.current = "";
-    }
+  const cleanup = useCallback(() => {
+    scheduledRef.current.forEach(id => Tone.getTransport().clear(id));
+    scheduledRef.current = [];
+    Tone.getTransport().stop();
+    Tone.getTransport().cancel();
     if (timerRef.current) {
       cancelAnimationFrame(timerRef.current);
       timerRef.current = undefined;
     }
-    setIsPlaying(false);
-    setProgress(0);
+    if (synthRef.current) {
+      synthRef.current.releaseAll();
+      synthRef.current.disconnect();
+      synthRef.current.dispose();
+      synthRef.current = null;
+    }
+    if (reverbRef.current) {
+      reverbRef.current.disconnect();
+      reverbRef.current.dispose();
+      reverbRef.current = null;
+    }
   }, []);
 
-  const play = useCallback((tablature: string, bpm: number = 120) => {
+  const stop = useCallback(() => {
+    cleanup();
+    setIsPlaying(false);
+    setProgress(0);
+    setCurrentColumn(-1);
+  }, [cleanup]);
+
+  const play = useCallback(async (tablature: string, bpm: number = 100) => {
     stop();
 
-    const notes = parseTablature(tablature);
-    if (notes.length === 0) {
+    const parsed = parseTablature(tablature);
+    if (parsed.notes.length === 0) {
       console.warn("[TablaturePlayer] No notes parsed");
       return;
     }
 
-    const tempoScale = 120 / bpm;
-    const sampleRate = 22050;
+    await Tone.start();
+    console.log(`[TablaturePlayer] Playing ${parsed.notes.length} notes at ${bpm} BPM`);
 
-    console.log(`[TablaturePlayer] Generating WAV: ${notes.length} notes at ${bpm} BPM`);
+    // Create guitar-like synth with ADSR envelope
+    const reverb = new Tone.Reverb({ decay: 1.8, wet: 0.25 }).toDestination();
+    await reverb.generate();
+    reverbRef.current = reverb;
 
-    const wavBuffer = generateWavBuffer(notes, sampleRate, tempoScale);
-    const blob = new Blob([wavBuffer], { type: "audio/wav" });
-    const url = URL.createObjectURL(blob);
-    urlRef.current = url;
-
-    const audio = new Audio(url);
-    audioRef.current = audio;
-
-    audio.onplay = () => {
-      setIsPlaying(true);
-      const updateProgress = () => {
-        if (!audioRef.current) return;
-        const pct = audioRef.current.duration > 0
-          ? audioRef.current.currentTime / audioRef.current.duration
-          : 0;
-        setProgress(Math.min(pct, 1));
-        if (pct < 1 && !audioRef.current.paused) {
-          timerRef.current = requestAnimationFrame(updateProgress);
-        }
-      };
-      timerRef.current = requestAnimationFrame(updateProgress);
-    };
-
-    audio.onended = () => {
-      setIsPlaying(false);
-      setProgress(0);
-    };
-
-    audio.onerror = (e) => {
-      console.error("[TablaturePlayer] Audio error:", e);
-      setIsPlaying(false);
-    };
-
-    audio.play().catch(err => {
-      console.error("[TablaturePlayer] Play failed:", err);
-      setIsPlaying(false);
+    const synth = new Tone.PolySynth(Tone.Synth).connect(reverb);
+    synth.maxPolyphony = 12;
+    synth.set({
+      oscillator: {
+        type: "fmtriangle" as any,
+      },
+      envelope: {
+        attack: 0.005,
+        decay: 0.4,
+        sustain: 0.08,
+        release: 0.6,
+      },
+      volume: -8,
     });
+    synthRef.current = synth;
+
+    // Calculate timing: each column = one 16th-note equivalent
+    const secondsPerCol = 60 / bpm / 2; // 8th-note feel
+    const transport = Tone.getTransport();
+    transport.bpm.value = bpm;
+    transport.cancel();
+
+    const ids: number[] = [];
+
+    // Group notes by column for simultaneous playback
+    const notesByCol = new Map<number, TabNote[]>();
+    for (const note of parsed.notes) {
+      const col = note.column;
+      if (!notesByCol.has(col)) notesByCol.set(col, []);
+      notesByCol.get(col)!.push(note);
+    }
+
+    const totalDuration = parsed.totalColumns * secondsPerCol + 1;
+    totalDurRef.current = totalDuration;
+
+    for (const [col, colNotes] of notesByCol) {
+      const timeInSeconds = col * secondsPerCol;
+      const id = transport.schedule((time) => {
+        const freqs = colNotes.map(n => n.freq);
+        synth.triggerAttackRelease(freqs, "8n", time);
+        // Update highlight on the main thread
+        Tone.getDraw().schedule(() => {
+          setCurrentColumn(col);
+        }, time);
+      }, timeInSeconds);
+      ids.push(id);
+    }
+
+    // Schedule end
+    const endId = transport.schedule(() => {
+      Tone.getDraw().schedule(() => {
+        stop();
+      }, Tone.now());
+    }, totalDuration);
+    ids.push(endId);
+
+    scheduledRef.current = ids;
+
+    // Start transport
+    startTimeRef.current = Tone.now();
+    transport.start();
+    setIsPlaying(true);
+
+    // Progress animation
+    const updateProgress = () => {
+      const elapsed = Tone.now() - startTimeRef.current;
+      const pct = Math.min(elapsed / totalDuration, 1);
+      setProgress(pct);
+      if (pct < 1) {
+        timerRef.current = requestAnimationFrame(updateProgress);
+      }
+    };
+    timerRef.current = requestAnimationFrame(updateProgress);
   }, [stop]);
 
-  return { play, stop, isPlaying, progress };
+  return { play, stop, isPlaying, progress, currentColumn };
 }
