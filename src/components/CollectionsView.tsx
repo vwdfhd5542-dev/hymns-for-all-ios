@@ -17,6 +17,7 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [selectedCol, setSelectedCol] = useState<string | null>(null);
+  const [selectedAuto, setSelectedAuto] = useState<string | null>(null);
   const [showAddSongs, setShowAddSongs] = useState(false);
   const { data: songIds = [] } = useCollectionSongs(selectedCol);
   const addSongToCol = useAddSongToCollection();
@@ -42,6 +43,36 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
 
   const selectedCollection = collections.find(c => c.id === selectedCol);
   const collectionSongs = songs.filter(s => songIds.includes(s.id));
+  const autoCol = autoCollections.find(c => c.name === selectedAuto);
+
+  // Detail view for auto-collection
+  if (selectedAuto && autoCol) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="px-4 safe-top pb-3">
+          <div className="flex items-center gap-3 pt-4">
+            <button onClick={() => setSelectedAuto(null)} className="text-primary">
+              <ChevronRight size={20} className="rotate-180" />
+            </button>
+            <h1 className="text-2xl font-bold tracking-tight flex-1">{autoCol.name}</h1>
+            <span className="text-sm text-muted-foreground">{autoCol.songs.length} cântări</span>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto pb-24 px-4 space-y-2 pt-2">
+          {autoCol.songs.map(song => (
+            <button
+              key={song.id}
+              onClick={() => onSongSelect(song)}
+              className="w-full text-left rounded-xl bg-card border border-border p-3 active:scale-[0.98] transition-all"
+            >
+              <p className="font-semibold text-sm truncate">{song.title}</p>
+              <p className="text-[11px] text-muted-foreground">{song.artist}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   // Detail view for custom collection
   if (selectedCol && selectedCollection) {
@@ -107,38 +138,6 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
     );
   }
 
-  // Detail view for auto-collection (from song.collection field)
-  const [selectedAuto, setSelectedAuto] = useState<string | null>(null);
-  const autoCol = autoCollections.find(c => c.name === selectedAuto);
-
-  if (selectedAuto && autoCol) {
-    return (
-      <div className="flex flex-col h-full">
-        <div className="px-4 safe-top pb-3">
-          <div className="flex items-center gap-3 pt-4">
-            <button onClick={() => setSelectedAuto(null)} className="text-primary">
-              <ChevronRight size={20} className="rotate-180" />
-            </button>
-            <h1 className="text-2xl font-bold tracking-tight flex-1">{autoCol.name}</h1>
-            <span className="text-sm text-muted-foreground">{autoCol.songs.length} cântări</span>
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto pb-24 px-4 space-y-2 pt-2">
-          {autoCol.songs.map(song => (
-            <button
-              key={song.id}
-              onClick={() => onSongSelect(song)}
-              className="w-full text-left rounded-xl bg-card border border-border p-3 active:scale-[0.98] transition-all"
-            >
-              <p className="font-semibold text-sm truncate">{song.title}</p>
-              <p className="text-[11px] text-muted-foreground">{song.artist}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-full">
       <div className="px-4 safe-top pb-3">
@@ -198,9 +197,7 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
         ))}
 
         {/* Custom collections */}
-        {(collections.length > 0 || !isLoading) && (
-          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider pt-4">Colecții personalizate</p>
-        )}
+        <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider pt-4">Colecții personalizate</p>
         {isLoading && (
           <div className="flex items-center justify-center py-10">
             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
