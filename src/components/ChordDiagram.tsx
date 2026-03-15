@@ -225,7 +225,7 @@ function FingerpickingTab({ chord }: { chord: string }) {
               level === l ? "bg-primary/15 text-primary border-primary/30" : "bg-muted border-border text-muted-foreground"
             }`}
           >
-            {levelLabels[l]} {l.charAt(0).toUpperCase() + l.slice(1)}
+            {levelEmojis[l]} {t(`tab.level.${l}` as any)}
           </button>
         ))}
       </div>
