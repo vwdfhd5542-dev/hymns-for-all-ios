@@ -60,6 +60,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
   const [translateLang, setTranslateLang] = useState<Language | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [showTranslateMenu, setShowTranslateMenu] = useState(false);
+  const [showTablature, setShowTablature] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const animRef = useRef<number>();
   const [isGeneratingChords, setIsGeneratingChords] = useState(false);
