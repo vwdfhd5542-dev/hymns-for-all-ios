@@ -109,16 +109,6 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
     );
   };
 
-  const handleDeleteSong = () => {
-    deleteSong.mutate(song.id, {
-      onSuccess: () => {
-        toast.success(t("song.deleted"));
-        onBack();
-      },
-      onError: () => toast.error(t("song.deleteError")),
-    });
-  };
-
   const handleAiChords = async () => {
     setIsGeneratingChords(true);
     try {
