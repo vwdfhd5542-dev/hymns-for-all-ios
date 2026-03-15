@@ -8,23 +8,30 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("[useAuth] onAuthStateChange:", event, session?.user?.id ?? "no user");
-      setSession(session);
-      setUser(session?.user ?? null);
+    let isMounted = true;
+
+    const applySession = (nextSession: Session | null) => {
+      if (!isMounted) return;
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
       setLoading(false);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      applySession(nextSession);
     });
 
-    // Then check existing session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      console.log("[useAuth] getSession:", session?.user?.id ?? "no session", error?.message ?? "no error");
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) {
+        console.error("[useAuth] getSession failed", error);
+      }
+      applySession(data.session ?? null);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = useCallback(async () => {

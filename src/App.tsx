@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +13,23 @@ const queryClient = new QueryClient();
 
 function AppRoutes() {
   const { user, loading } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const isAuthRoute = location.pathname === "/auth" || location.pathname === "/reset-password";
+
+    if (user && location.pathname === "/auth") {
+      navigate("/", { replace: true });
+      return;
+    }
+
+    if (!user && !isAuthRoute) {
+      navigate("/auth", { replace: true });
+    }
+  }, [user, loading, location.pathname, navigate]);
 
   if (loading) {
     return (
@@ -23,9 +41,9 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+      <Route path="/auth" element={<Auth />} />
       <Route path="/reset-password" element={<Auth />} />
-      <Route path="/" element={user ? <Index /> : <Navigate to="/auth" replace />} />
+      <Route path="/" element={<Index />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
