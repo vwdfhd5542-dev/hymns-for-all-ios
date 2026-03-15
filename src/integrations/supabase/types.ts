@@ -74,11 +74,33 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       songs: {
         Row: {
           artist: string
           collection: string
           created_at: string
+          created_by: string | null
           id: string
           lyrics: string
           title: string
@@ -88,6 +110,7 @@ export type Database = {
           artist: string
           collection?: string
           created_at?: string
+          created_by?: string | null
           id?: string
           lyrics: string
           title: string
@@ -97,12 +120,42 @@ export type Database = {
           artist?: string
           collection?: string
           created_at?: string
+          created_by?: string | null
           id?: string
           lyrics?: string
           title?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      user_favorites: {
+        Row: {
+          created_at: string
+          id: string
+          song_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          song_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          song_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_favorites_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

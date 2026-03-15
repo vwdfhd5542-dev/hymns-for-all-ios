@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Moon, Sun, Info, Smartphone, Droplets, ChevronDown, ChevronUp, Mic, Music, Guitar, Sparkles, FolderOpen, Scroll, Edit3, Globe } from "lucide-react";
+import { Moon, Sun, Info, Smartphone, Droplets, ChevronDown, ChevronUp, Mic, Music, Guitar, Sparkles, FolderOpen, Scroll, Edit3, Globe, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { useLanguage, Language, languageNames, languageFlags } from "@/hooks/useLanguage";
 
 export function SettingsView() {
+  const { user, signOut } = useAuth();
   const { mode, glassEnabled, toggleMode, toggleGlass } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const [showFeatures, setShowFeatures] = useState(false);
@@ -159,6 +161,20 @@ export function SettingsView() {
           <p className="text-xs text-muted-foreground leading-relaxed">
             {t("settings.aboutText")}
           </p>
+        </div>
+
+        {/* Account */}
+        <div className="bg-card rounded-xl p-4 border border-border">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-xs text-muted-foreground">{user?.email}</span>
+          </div>
+          <button
+            onClick={signOut}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-destructive/15 text-destructive text-sm font-semibold active:scale-[0.98] transition-all"
+          >
+            <LogOut size={16} />
+            Cerrar sesión
+          </button>
         </div>
       </div>
     </div>
