@@ -2,7 +2,7 @@ import { usePitchDetection } from "@/hooks/usePitchDetection";
 import { Mic, MicOff, Music } from "lucide-react";
 
 export function PitchDetector() {
-  const { isListening, detectedNote, detectedKey, confidence, startListening, stopListening } = usePitchDetection();
+  const { isListening, detectedNote, detectedKey, keyQuality, confidence, startListening, stopListening } = usePitchDetection();
 
   return (
     <div className="mx-4 mb-4">
@@ -39,7 +39,9 @@ export function PitchDetector() {
               <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-sm">{detectedKey}</span>
               </div>
-              <span className="text-[10px] text-muted-foreground mt-0.5">{confidence}%</span>
+              <span className="text-[10px] text-muted-foreground mt-0.5">
+                {keyQuality === "minor" ? "m" : "M"} · {confidence}%
+              </span>
             </div>
           </div>
         )}

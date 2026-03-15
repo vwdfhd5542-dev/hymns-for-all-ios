@@ -4,6 +4,51 @@
 
 @layer base {
   :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 5%;
+
+    --card: 0 0% 96%;
+    --card-foreground: 0 0% 5%;
+
+    --popover: 0 0% 96%;
+    --popover-foreground: 0 0% 5%;
+
+    --primary: 152 69% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 92%;
+    --secondary-foreground: 0 0% 15%;
+
+    --muted: 0 0% 92%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 152 69% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --chord: 152 69% 40%;
+    --chord-foreground: 152 69% 35%;
+
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 152 69% 40%;
+
+    --radius: 0.75rem;
+    --nav-height: 5rem;
+
+    --sidebar-background: 0 0% 96%;
+    --sidebar-foreground: 0 0% 5%;
+    --sidebar-primary: 152 69% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 92%;
+    --sidebar-accent-foreground: 0 0% 5%;
+    --sidebar-border: 0 0% 88%;
+    --sidebar-ring: 152 69% 40%;
+  }
+
+  .dark {
     --background: 0 0% 0%;
     --foreground: 0 0% 100%;
 
@@ -13,7 +58,7 @@
     --popover: 240 3% 11%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 211 100% 50%;
+    --primary: 152 69% 45%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 240 3% 11%;
@@ -22,31 +67,49 @@
     --muted: 240 3% 15%;
     --muted-foreground: 240 3% 57%;
 
-    --accent: 349 100% 61%;
+    --accent: 152 69% 45%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --chord: 142 71% 50%;
-    --chord-foreground: 142 71% 45%;
+    --chord: 152 69% 50%;
+    --chord-foreground: 152 69% 45%;
 
     --border: 240 3% 18%;
     --input: 240 3% 18%;
-    --ring: 211 100% 50%;
+    --ring: 152 69% 45%;
 
     --radius: 0.75rem;
-
     --nav-height: 5rem;
 
     --sidebar-background: 240 3% 11%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 211 100% 50%;
+    --sidebar-primary: 152 69% 45%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3% 15%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 240 3% 18%;
-    --sidebar-ring: 211 100% 50%;
+    --sidebar-ring: 152 69% 45%;
+  }
+
+  /* Liquid Glass theme */
+  .glass-theme {
+    --card: 0 0% 100% / 0.08;
+    --border: 0 0% 100% / 0.15;
+    --muted: 0 0% 100% / 0.06;
+  }
+
+  .glass-theme .glass-card {
+    background: hsla(0, 0%, 100%, 0.08);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid hsla(0, 0%, 100%, 0.15);
+  }
+
+  .glass-theme.light .glass-card {
+    background: hsla(0, 0%, 100%, 0.6);
+    border: 1px solid hsla(0, 0%, 100%, 0.4);
   }
 }
 
@@ -62,7 +125,6 @@
     overscroll-behavior: none;
   }
 
-  /* Hide scrollbars for iOS feel */
   ::-webkit-scrollbar {
     display: none;
   }
@@ -72,12 +134,18 @@
 }
 
 @layer utilities {
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top, 0px), 20px);
+  }
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   .glass {
     @apply backdrop-blur-xl;
     background: hsla(240, 3%, 11%, 0.85);
+  }
+  .light .glass {
+    background: hsla(0, 0%, 100%, 0.85);
   }
   .font-mono-lyrics {
     font-family: 'Roboto Mono', monospace;

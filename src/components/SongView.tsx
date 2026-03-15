@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Song, transposeLine, parseLyricsLine } from "@/data/songs";
+import { Song, transposeLine } from "@/data/songs";
 import { useUpdateSong } from "@/hooks/useSongs";
 import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Guitar } from "lucide-react";
 import { toast } from "sonner";
@@ -11,7 +11,6 @@ interface SongViewProps {
   onToggleFavorite: () => void;
 }
 
-// Parse a line into chord-positioned segments for "chords above" display
 function parseChordsAbove(line: string, transpose: number): { chords: string; lyrics: string } | null {
   const transposed = transposeLine(line, transpose);
   const regex = /\[([^\]]+)\]/g;
@@ -24,7 +23,6 @@ function parseChordsAbove(line: string, transpose: number): { chords: string; ly
   while ((match = regex.exec(transposed)) !== null) {
     hasChords = true;
     const textBefore = transposed.slice(lastIndex, match.index).replace(/\[[^\]]*\]/g, "");
-    // Pad chord line to align with lyrics
     while (chordLine.length < lyricLine.length + textBefore.length) {
       chordLine += " ";
     }
@@ -55,11 +53,9 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
 
   const lines = song.lyrics.split("\n");
 
-  // Get the song key from first chord
-  const keyMatch = song.lyrics.match(/\[([A-G][#b]?)/);
+  const keyMatch = song.lyrics.match(/\[([A-G][#b]?m?)/);
   const songKey = keyMatch ? keyMatch[1] : "?";
 
-  // Auto-scroll
   useEffect(() => {
     if (!autoScroll || !scrollRef.current) {
       if (animRef.current) cancelAnimationFrame(animRef.current);
@@ -96,28 +92,26 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
     );
   };
 
-  // Complex chord suggestions
   const complexChordMap: Record<string, string[]> = {
-    C: ["Cmaj7", "C7", "Cadd9", "Csus4", "Csus2", "C6"],
-    D: ["Dmaj7", "D7", "Dadd9", "Dsus4", "Dsus2", "D6"],
-    E: ["Emaj7", "E7", "Eadd9", "Esus4", "E6", "E9"],
-    F: ["Fmaj7", "F7", "Fadd9", "Fsus4", "F6", "F9"],
-    G: ["Gmaj7", "G7", "Gadd9", "Gsus4", "Gsus2", "G6"],
-    A: ["Amaj7", "A7", "Aadd9", "Asus4", "Asus2", "A6"],
-    B: ["Bmaj7", "B7", "Badd9", "Bsus4", "B6", "B9"],
-    Am: ["Am7", "Am9", "Amadd9", "Am6", "Am7b5"],
-    Bm: ["Bm7", "Bm9", "Bmadd9", "Bm6"],
-    Dm: ["Dm7", "Dm9", "Dmadd9", "Dm6"],
-    Em: ["Em7", "Em9", "Emadd9", "Em6"],
+    C: ["Cmaj7", "C7", "Cadd9", "Csus4", "Csus2"],
+    D: ["Dmaj7", "D7", "Dadd9", "Dsus4", "Dsus2"],
+    E: ["Emaj7", "E7", "Eadd9", "Esus4"],
+    F: ["Fmaj7", "F7", "Fadd9", "Fsus4"],
+    G: ["Gmaj7", "G7", "Gadd9", "Gsus4", "Gsus2"],
+    A: ["Amaj7", "A7", "Aadd9", "Asus4", "Asus2"],
+    B: ["Bmaj7", "B7", "Badd9", "Bsus4"],
+    Am: ["Am7", "Am9", "Amadd9"],
+    Bm: ["Bm7", "Bm9"],
+    Dm: ["Dm7", "Dm9"],
+    Em: ["Em7", "Em9"],
   };
 
-  // Extract unique chords from song
   const uniqueChords = [...new Set(song.lyrics.match(/\[([^\]]+)\]/g)?.map(c => c.slice(1, -1)) || [])];
 
   return (
     <div className="flex flex-col h-full animate-slide-in-right">
-      {/* Top bar */}
-      <div className="glass fixed top-0 left-0 right-0 z-40 border-b border-border">
+      {/* Top bar with safe area */}
+      <div className="glass fixed top-0 left-0 right-0 z-40 border-b border-border safe-top">
         <div className="flex items-center h-14 px-3 max-w-3xl mx-auto">
           <button onClick={onBack} className="flex items-center gap-0.5 text-primary min-w-[44px] min-h-[44px] justify-center">
             <ChevronLeft size={22} />
@@ -152,7 +146,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
                 </button>
                 <button onClick={onToggleFavorite}
                   className="min-w-[40px] min-h-[44px] flex items-center justify-center">
-                  <Heart size={18} className={isFavorite ? "text-accent" : "text-muted-foreground"} fill={isFavorite ? "currentColor" : "none"} />
+                  <Heart size={18} className={isFavorite ? "text-primary" : "text-muted-foreground"} fill={isFavorite ? "currentColor" : "none"} />
                 </button>
               </>
             )}
@@ -162,7 +156,6 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
         {/* Toolbar */}
         {showTools && !isEditing && (
           <div className="border-t border-border px-4 py-3 space-y-3 animate-fade-in">
-            {/* Transpose */}
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground font-medium">Transpune</span>
               <div className="flex items-center gap-2">
@@ -178,7 +171,6 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
               </div>
             </div>
 
-            {/* Font size */}
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground font-medium">Mărime text</span>
               <div className="flex items-center gap-2">
@@ -192,7 +184,6 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
               </div>
             </div>
 
-            {/* Auto-scroll */}
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground font-medium">Auto-scroll</span>
               <div className="flex items-center gap-2">
@@ -208,7 +199,6 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
               </div>
             </div>
 
-            {/* Complex chords toggle */}
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground font-medium">Acorduri complexe</span>
               <button onClick={() => setShowComplexChords((v) => !v)}
@@ -222,9 +212,8 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
 
       {/* Content */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto pb-8 px-4"
-        style={{ paddingTop: showTools && !isEditing ? "16rem" : "4.5rem" }}>
+        style={{ paddingTop: showTools && !isEditing ? "20rem" : "7rem" }}>
         <div className="max-w-3xl mx-auto">
-          {/* Song header */}
           <div className="mb-6">
             <div className="flex items-start gap-3 mb-3">
               <div className="flex-1">
@@ -245,7 +234,6 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
             )}
           </div>
 
-          {/* Complex chords panel */}
           {showComplexChords && (
             <div className="mb-6 bg-card border border-border rounded-xl p-4 animate-fade-in">
               <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Variante acorduri</p>
@@ -256,7 +244,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
                   if (variants.length === 0) return null;
                   return (
                     <div key={chord} className="flex items-center gap-2 flex-wrap">
-                      <span className="text-chord font-bold text-sm min-w-[3rem]">{chord}</span>
+                      <span className="text-primary font-bold text-sm min-w-[3rem]">{chord}</span>
                       <span className="text-muted-foreground text-[10px]">→</span>
                       {variants.map((v) => (
                         <span key={v} className="text-[11px] bg-muted px-2 py-0.5 rounded-md font-mono text-muted-foreground">
@@ -270,7 +258,6 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
             </div>
           )}
 
-          {/* Edit mode */}
           {isEditing ? (
             <div>
               <p className="text-xs text-muted-foreground mb-2">
@@ -285,7 +272,6 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
               />
             </div>
           ) : (
-            /* Lyrics with chords ABOVE */
             <div className="font-mono-lyrics" style={{ fontSize: `${fontSize}px` }}>
               {lines.map((line, i) => {
                 if (line.trim() === "") {
@@ -295,7 +281,6 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
                 const result = parseChordsAbove(line, transpose);
 
                 if (!result) {
-                  // Line with no chords — just text
                   const transposed = transposeLine(line, transpose);
                   const cleanText = transposed.replace(/\[[^\]]*\]/g, "");
                   return (
@@ -307,7 +292,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
 
                 return (
                   <div key={i} className="mb-1">
-                    <div className="text-chord font-bold whitespace-pre" style={{ fontSize: `${Math.max(11, fontSize - 2)}px`, lineHeight: 1.4 }}>
+                    <div className="text-primary font-bold whitespace-pre" style={{ fontSize: `${Math.max(11, fontSize - 2)}px`, lineHeight: 1.4 }}>
                       {result.chords}
                     </div>
                     <div className="whitespace-pre-wrap break-words leading-relaxed">

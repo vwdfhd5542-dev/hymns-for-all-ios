@@ -19,21 +19,14 @@ function getSongKey(song: Song): string {
   return match ? match[1] : "?";
 }
 
-function getKeyColor(key: string): string {
-  const colors: Record<string, string> = {
-    C: "bg-emerald-600", "C#": "bg-emerald-700",
-    D: "bg-amber-600", "D#": "bg-amber-700",
-    E: "bg-blue-600", F: "bg-purple-600", "F#": "bg-purple-700",
-    G: "bg-green-600", "G#": "bg-green-700",
-    A: "bg-red-600", "A#": "bg-red-700",
-    B: "bg-indigo-600",
-  };
-  return colors[key] || "bg-muted";
-}
-
 function getKeyLabel(key: string, lyrics: string): string {
-  const isMinor = lyrics.match(/\[([A-G][#b]?m)/);
-  return isMinor ? `${key} minor` : `${key} major`;
+  // Check if the first chord is minor
+  const firstChordMatch = lyrics.match(/\[([A-G][#b]?m?)[\d\w]*\]/);
+  if (firstChordMatch) {
+    const chord = firstChordMatch[1];
+    if (chord.endsWith("m")) return `${key} minor`;
+  }
+  return `${key} major`;
 }
 
 export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false, onAddSong }: SongLibraryProps) {
@@ -61,9 +54,9 @@ export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false,
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-4 pt-12 pb-3">
-        <div className="flex items-center justify-between">
+      {/* Header with safe area */}
+      <div className="px-4 safe-top pb-3">
+        <div className="flex items-center justify-between pt-2">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
               <Music size={20} className="text-primary" />
@@ -166,12 +159,12 @@ export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false,
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 mt-1">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-foreground ${getKeyColor(songKey)}`}>
+                  <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">
                     {songKey}
                   </div>
                   <Heart
                     size={20}
-                    className={isFavorite(song.id) ? "text-amber-500" : "text-muted-foreground/40"}
+                    className={isFavorite(song.id) ? "text-primary" : "text-muted-foreground/40"}
                     fill={isFavorite(song.id) ? "currentColor" : "none"}
                   />
                 </div>

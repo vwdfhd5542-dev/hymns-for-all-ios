@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      collection_songs: {
+        Row: {
+          collection_id: string
+          created_at: string
+          id: string
+          position: number | null
+          song_id: string
+        }
+        Insert: {
+          collection_id: string
+          created_at?: string
+          id?: string
+          position?: number | null
+          song_id: string
+        }
+        Update: {
+          collection_id?: string
+          created_at?: string
+          id?: string
+          position?: number | null
+          song_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_songs_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_songs_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collections: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       songs: {
         Row: {
           artist: string
