@@ -1,21 +1,22 @@
-import { Search, X, Music } from "lucide-react";
+import { Search, X, Music, Plus } from "lucide-react";
 import { useState, useMemo } from "react";
-import { Song, songs } from "@/data/songs";
+import { Song } from "@/data/songs";
 import { Heart } from "lucide-react";
 import { PitchDetector } from "./PitchDetector";
+import { useSongs } from "@/hooks/useSongs";
 
 interface SongLibraryProps {
   onSongSelect: (song: Song) => void;
   isFavorite: (id: string) => boolean;
   filterFavorites?: boolean;
+  onAddSong?: () => void;
 }
 
 const COLLECTIONS = ["Toate", "Speranța", "Boanerges", "Hymns"];
 
 function getSongKey(song: Song): string {
   const match = song.lyrics.match(/\[([A-G][#b]?)/);
-  if (!match) return "?";
-  return match[1];
+  return match ? match[1] : "?";
 }
 
 function getKeyColor(key: string): string {
@@ -30,20 +31,15 @@ function getKeyColor(key: string): string {
   return colors[key] || "bg-muted";
 }
 
-function getKeyLabel(key: string): string {
-  const major: Record<string, string> = {
-    C: "C major", D: "D major", E: "E major", F: "F major",
-    G: "G major", A: "A major", B: "B major",
-    "C#": "C# major", "D#": "D# major", "F#": "F# major",
-    "G#": "G# major", "A#": "A# major",
-  };
-  // Check if first chord is minor
-  return major[key] || `${key} major`;
+function getKeyLabel(key: string, lyrics: string): string {
+  const isMinor = lyrics.match(/\[([A-G][#b]?m)/);
+  return isMinor ? `${key} minor` : `${key} major`;
 }
 
-export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false }: SongLibraryProps) {
+export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false, onAddSong }: SongLibraryProps) {
   const [query, setQuery] = useState("");
   const [activeCollection, setActiveCollection] = useState("Toate");
+  const { data: songs = [], isLoading } = useSongs();
 
   const filtered = useMemo(() => {
     let list = filterFavorites ? songs.filter((s) => isFavorite(s.id)) : songs;
@@ -61,7 +57,7 @@ export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false 
       );
     }
     return list;
-  }, [query, filterFavorites, isFavorite, activeCollection]);
+  }, [query, filterFavorites, isFavorite, activeCollection, songs]);
 
   return (
     <div className="flex flex-col h-full">
@@ -81,6 +77,11 @@ export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false 
               )}
             </div>
           </div>
+          {onAddSong && (
+            <button onClick={onAddSong} className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+              <Plus size={20} className="text-primary" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -127,7 +128,12 @@ export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false 
 
       {/* Song list */}
       <div className="flex-1 overflow-y-auto pb-24 px-4 space-y-3">
-        {filtered.length === 0 && (
+        {isLoading && (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+        {!isLoading && filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <p className="text-sm">
               {filterFavorites ? "Nu ai cântări favorite încă." : "Nicio cântare găsită."}
@@ -136,8 +142,7 @@ export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false 
         )}
         {filtered.map((song) => {
           const songKey = getSongKey(song);
-          const isMinor = song.lyrics.match(/\[([A-G][#b]?m)/);
-          const keyLabel = isMinor ? `${songKey} minor` : getKeyLabel(songKey);
+          const keyLabel = getKeyLabel(songKey, song.lyrics);
 
           return (
             <button
