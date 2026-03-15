@@ -20,13 +20,16 @@ serve(async (req) => {
   try {
     const { lyrics, targetLanguage } = await req.json();
 
-    const prompt = `You are an expert translator of Christian worship songs. Translate the following song lyrics to ${langNames[targetLanguage] || "English"}.
+    const prompt = `You are an expert translator and poet specializing in Christian worship songs. Translate the following song lyrics to ${langNames[targetLanguage] || "English"}.
 
 Rules:
 - Keep ALL chord notations in [Chord] format exactly as they are, do not translate or modify chords
 - Translate ONLY the lyrics text between chords
 - Preserve the exact same line structure and formatting
-- Make the translation singable and natural, not word-for-word
+- CRITICAL: Make the translated verses RHYME naturally in ${langNames[targetLanguage] || "English"}. Prioritize rhyme and poetic flow over literal meaning.
+- Adapt the lyrics so they are singable, poetic, and maintain the same rhyme scheme (AABB, ABAB, etc.) as the original when possible
+- Use natural, beautiful language — it should feel like a song written originally in ${langNames[targetLanguage] || "English"}, not a translation
+- Keep the spiritual meaning and emotion of the original
 - Keep empty lines as empty lines
 - Return ONLY the translated lyrics with chords, no explanations
 
