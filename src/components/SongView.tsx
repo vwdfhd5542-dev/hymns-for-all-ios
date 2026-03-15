@@ -279,26 +279,9 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
           </div>
 
           {showComplexChords && (
-            <div className="mb-6 bg-card border border-border rounded-2xl p-4 animate-fade-in">
-              <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Variante acorduri</p>
-              <div className="space-y-2.5">
-                {uniqueChords.map((chord) => {
-                  const base = chord.replace(/\d.*$/, "").replace(/sus.*$/, "").replace(/add.*$/, "").replace(/maj.*$/, "");
-                  const variants = complexChordMap[base] || complexChordMap[chord] || [];
-                  if (variants.length === 0) return null;
-                  return (
-                    <div key={chord} className="flex items-center gap-2 flex-wrap">
-                      <span className="text-primary font-bold text-sm min-w-[3rem]">{chord}</span>
-                      <span className="text-muted-foreground text-[10px]">→</span>
-                      {variants.map((v) => (
-                        <span key={v} className="text-[11px] bg-muted px-2 py-0.5 rounded-md font-mono text-muted-foreground">
-                          {v}
-                        </span>
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="mb-4 inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full">
+              <Sparkles size={12} />
+              Acorduri înflorite activate
             </div>
           )}
 
@@ -322,7 +305,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
                   return <div key={i} className="h-5" />;
                 }
 
-                const result = parseChordsAbove(line, transpose);
+                const result = parseChordsAbove(line, transpose, showComplexChords);
 
                 if (!result) {
                   const transposed = transposeLine(line, transpose);
@@ -334,10 +317,28 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
                   );
                 }
 
+                // Build chord line with spacing
+                const chordElements: React.ReactNode[] = [];
+                let lastEnd = 0;
+                result.chords.forEach((c, ci) => {
+                  const spaces = Math.max(0, c.pos - lastEnd);
+                  if (spaces > 0) {
+                    chordElements.push(<span key={`sp-${ci}`}>{" ".repeat(spaces)}</span>);
+                  }
+                  chordElements.push(
+                    <span key={`ch-${ci}`}
+                      className="cursor-pointer hover:underline active:opacity-70 transition-opacity"
+                      onClick={() => setSelectedChord(c.text)}>
+                      {c.text}
+                    </span>
+                  );
+                  lastEnd = c.pos + c.text.length;
+                });
+
                 return (
                   <div key={i} className="mb-1">
                     <div className="text-primary font-bold whitespace-pre" style={{ fontSize: `${Math.max(11, fontSize - 2)}px`, lineHeight: 1.4 }}>
-                      {result.chords}
+                      {chordElements}
                     </div>
                     <div className="whitespace-pre-wrap break-words leading-relaxed">
                       {result.lyrics}
@@ -349,6 +350,12 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
           )}
         </div>
       </div>
+
+      <ChordDiagramDialog
+        chord={selectedChord}
+        open={!!selectedChord}
+        onClose={() => setSelectedChord(null)}
+      />
     </div>
   );
 }
