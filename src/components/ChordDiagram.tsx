@@ -2,7 +2,7 @@ import { useState } from "react";
 import { chordDiagrams, ChordDiagramData } from "@/data/chordDiagrams";
 import { pianoChords, PianoChordData } from "@/data/pianoChords";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Guitar, Piano, Loader2 } from "lucide-react";
+import { Guitar, Piano, Loader2, Play, Square } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/hooks/useLanguage";
 import { toast } from "sonner";
