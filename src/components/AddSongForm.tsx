@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { X, Sparkles, Loader2 } from "lucide-react";
+import { X, Sparkles, Loader2, Plus } from "lucide-react";
 import { useAddSong, useSongs } from "@/hooks/useSongs";
+import { useCollections, useAddCollection } from "@/hooks/useCollections";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/useLanguage";
@@ -11,20 +12,38 @@ interface AddSongFormProps {
 
 export function AddSongForm({ onClose }: AddSongFormProps) {
   const { data: songs = [] } = useSongs();
+  const { data: dbCollections = [] } = useCollections();
+  const addCollection = useAddCollection();
+
   const collections = useMemo(() => {
     const unique = new Set(songs.map(s => s.collection));
-    // Ensure at least these defaults exist
     ["Speranța", "Boanerges", "Hymns", "Eldad", "Elim Harmony"].forEach(c => unique.add(c));
+    dbCollections.forEach(c => unique.add(c.name));
     return Array.from(unique).sort();
-  }, [songs]);
+  }, [songs, dbCollections]);
 
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [collection, setCollection] = useState("Hymns");
   const [lyrics, setLyrics] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showNewCol, setShowNewCol] = useState(false);
+  const [newColName, setNewColName] = useState("");
   const addSong = useAddSong();
   const { t } = useLanguage();
+
+  const handleAddCollection = () => {
+    const name = newColName.trim();
+    if (!name) return;
+    addCollection.mutate({ name }, {
+      onSuccess: () => {
+        setCollection(name);
+        setNewColName("");
+        setShowNewCol(false);
+        toast.success(t("collections.created"));
+      },
+    });
+  };
 
   const handleAutoChords = async () => {
     if (!lyrics.trim()) {
