@@ -133,38 +133,14 @@ export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false,
         {filtered.map((song) => {
           const songKey = getSongKey(song);
           return (
-            <button
+            <SwipeSongCard
               key={song.id}
-              onClick={() => onSongSelect(song)}
-              className="w-full text-left rounded-xl bg-card border border-border p-4 active:scale-[0.98] transition-all"
-            >
-              <div className="flex items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-base truncate">{song.title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {song.artist} • {song.collection}
-                  </p>
-                  <div className="flex gap-2 mt-2.5 flex-wrap">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-[11px] font-medium text-muted-foreground">
-                      ♪ {t("library.chords")}
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-[11px] font-medium text-muted-foreground">
-                      ☰ {t("library.lyrics")}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0 mt-1">
-                  <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">
-                    {songKey}
-                  </div>
-                  <Heart
-                    size={20}
-                    className={isFavorite(song.id) ? "text-primary" : "text-muted-foreground/40"}
-                    fill={isFavorite(song.id) ? "currentColor" : "none"}
-                  />
-                </div>
-              </div>
-            </button>
+              song={song}
+              songKey={songKey}
+              isFavorite={isFavorite(song.id)}
+              onSelect={() => onSongSelect(song)}
+              t={t}
+            />
           );
         })}
       </div>
