@@ -173,4 +173,11 @@
   .font-mono-lyrics {
     font-family: 'Roboto Mono', monospace;
   }
+  }
+
+  @keyframes progressIndeterminate {
+    0% { width: 20%; margin-left: 0%; }
+    50% { width: 60%; margin-left: 20%; }
+    100% { width: 20%; margin-left: 80%; }
+  }
 }
