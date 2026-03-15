@@ -111,6 +111,35 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
     );
   };
 
+  const handleDeleteSong = () => {
+    deleteSong.mutate(song.id, {
+      onSuccess: () => {
+        toast.success(t("song.deleted"));
+        onBack();
+      },
+      onError: () => toast.error(t("song.deleteError")),
+    });
+  };
+
+  const handleAiChords = async () => {
+    setIsGeneratingChords(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("auto-chords", {
+        body: { title: song.title, artist: song.artist, lyrics: editLyrics },
+      });
+      if (error) throw error;
+      if (data?.lyrics) {
+        setEditLyrics(data.lyrics);
+        toast.success(t("addSong.chordsAdded"));
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(t("addSong.chordsError"));
+    } finally {
+      setIsGeneratingChords(false);
+    }
+  };
+
   const handleTranslate = async (lang: Language) => {
     setShowTranslateMenu(false);
     if (lang === "ro") {
