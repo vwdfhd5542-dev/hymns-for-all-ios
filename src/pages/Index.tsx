@@ -4,10 +4,11 @@ import { SongLibrary } from "@/components/SongLibrary";
 import { SongView } from "@/components/SongView";
 import { SettingsView } from "@/components/SettingsView";
 import { AddSongForm } from "@/components/AddSongForm";
+import { CollectionsView } from "@/components/CollectionsView";
 import { useFavorites } from "@/hooks/useFavorites";
 import { Song } from "@/data/songs";
 
-type Tab = "songs" | "favorites" | "settings";
+type Tab = "songs" | "favorites" | "collections" | "settings";
 
 const Index = () => {
   const [tab, setTab] = useState<Tab>("songs");
@@ -51,6 +52,9 @@ const Index = () => {
           isFavorite={isFavorite}
           filterFavorites
         />
+      )}
+      {tab === "collections" && (
+        <CollectionsView onSongSelect={setSelectedSong} />
       )}
       {tab === "settings" && <SettingsView />}
       <BottomNav activeTab={tab} onTabChange={setTab} />

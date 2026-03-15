@@ -1,6 +1,6 @@
-import { List, Heart, Settings } from "lucide-react";
+import { List, Heart, Settings, FolderOpen } from "lucide-react";
 
-type Tab = "songs" | "favorites" | "settings";
+type Tab = "songs" | "favorites" | "collections" | "settings";
 
 interface BottomNavProps {
   activeTab: Tab;
@@ -10,6 +10,7 @@ interface BottomNavProps {
 const tabs: { id: Tab; label: string; icon: typeof List }[] = [
   { id: "songs", label: "Cântări", icon: List },
   { id: "favorites", label: "Favorite", icon: Heart },
+  { id: "collections", label: "Colecții", icon: FolderOpen },
   { id: "settings", label: "Setări", icon: Settings },
 ];
 
