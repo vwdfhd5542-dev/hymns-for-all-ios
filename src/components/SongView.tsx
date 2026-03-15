@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Song, transposeLine } from "@/data/songs";
-import { useUpdateSong } from "@/hooks/useSongs";
+import { useUpdateSong, useDeleteSong } from "@/hooks/useSongs";
 import { usePitchDetection } from "@/hooks/usePitchDetection";
 import { chordEnrichmentMap } from "@/data/chordDiagrams";
 import { ChordDiagramDialog } from "@/components/ChordDiagram";
-import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Mic, MicOff, Sparkles, Globe, Loader2 } from "lucide-react";
+import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Mic, MicOff, Sparkles, Globe, Loader2, Trash2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage, languageNames, languageFlags, Language } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
