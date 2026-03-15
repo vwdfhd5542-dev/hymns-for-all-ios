@@ -10,6 +10,14 @@ interface AddSongFormProps {
 }
 
 export function AddSongForm({ onClose }: AddSongFormProps) {
+  const { data: songs = [] } = useSongs();
+  const collections = useMemo(() => {
+    const unique = new Set(songs.map(s => s.collection));
+    // Ensure at least these defaults exist
+    ["Speranța", "Boanerges", "Hymns", "Eldad", "Elim Harmony"].forEach(c => unique.add(c));
+    return Array.from(unique).sort();
+  }, [songs]);
+
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [collection, setCollection] = useState("Hymns");
