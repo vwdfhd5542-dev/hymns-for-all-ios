@@ -1,7 +1,8 @@
-import { Search } from "lucide-react";
+import { Search, X, Music } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Song, songs } from "@/data/songs";
 import { Heart } from "lucide-react";
+import { PitchDetector } from "./PitchDetector";
 
 interface SongLibraryProps {
   onSongSelect: (song: Song) => void;
@@ -9,48 +10,123 @@ interface SongLibraryProps {
   filterFavorites?: boolean;
 }
 
+const COLLECTIONS = ["Toate", "Speranța", "Boanerges", "Hymns"];
+
+function getSongKey(song: Song): string {
+  const match = song.lyrics.match(/\[([A-G][#b]?)/);
+  if (!match) return "?";
+  return match[1];
+}
+
+function getKeyColor(key: string): string {
+  const colors: Record<string, string> = {
+    C: "bg-emerald-600", "C#": "bg-emerald-700",
+    D: "bg-amber-600", "D#": "bg-amber-700",
+    E: "bg-blue-600", F: "bg-purple-600", "F#": "bg-purple-700",
+    G: "bg-green-600", "G#": "bg-green-700",
+    A: "bg-red-600", "A#": "bg-red-700",
+    B: "bg-indigo-600",
+  };
+  return colors[key] || "bg-muted";
+}
+
+function getKeyLabel(key: string): string {
+  const major: Record<string, string> = {
+    C: "C major", D: "D major", E: "E major", F: "F major",
+    G: "G major", A: "A major", B: "B major",
+    "C#": "C# major", "D#": "D# major", "F#": "F# major",
+    "G#": "G# major", "A#": "A# major",
+  };
+  // Check if first chord is minor
+  return major[key] || `${key} major`;
+}
+
 export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false }: SongLibraryProps) {
   const [query, setQuery] = useState("");
+  const [activeCollection, setActiveCollection] = useState("Toate");
 
   const filtered = useMemo(() => {
     let list = filterFavorites ? songs.filter((s) => isFavorite(s.id)) : songs;
+    if (activeCollection !== "Toate") {
+      list = list.filter((s) => s.collection === activeCollection);
+    }
     if (query.trim()) {
       const q = query.toLowerCase();
       list = list.filter(
         (s) =>
           s.title.toLowerCase().includes(q) ||
           s.artist.toLowerCase().includes(q) ||
-          s.collection.toLowerCase().includes(q)
+          s.collection.toLowerCase().includes(q) ||
+          s.lyrics.toLowerCase().includes(q)
       );
     }
     return list;
-  }, [query, filterFavorites, isFavorite]);
+  }, [query, filterFavorites, isFavorite, activeCollection]);
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 pt-14 pb-2">
-        <h1 className="text-3xl font-bold tracking-tight">
-          {filterFavorites ? "Favorite" : "Cântări"}
-        </h1>
+      <div className="px-4 pt-12 pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+              <Music size={20} className="text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">
+                {filterFavorites ? "Favorite" : "Hymns RO"}
+              </h1>
+              {!filterFavorites && (
+                <p className="text-xs text-primary font-medium">Cântări Creștine</p>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Search */}
       <div className="px-4 pb-3">
-        <div className="flex items-center gap-2 bg-card rounded-lg px-3 py-2.5">
+        <div className="flex items-center gap-2 bg-card rounded-xl px-3 py-2.5 border border-border">
           <Search size={16} className="text-muted-foreground shrink-0" />
           <input
             type="text"
-            placeholder="Caută o cântare..."
+            placeholder="Caută după titlu, artist sau versuri..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="bg-transparent text-sm w-full outline-none placeholder:text-muted-foreground"
           />
+          {query && (
+            <button onClick={() => setQuery("")} className="text-muted-foreground">
+              <X size={16} />
+            </button>
+          )}
         </div>
       </div>
 
+      {/* Collection filter chips */}
+      {!filterFavorites && (
+        <div className="px-4 pb-3 flex gap-2 overflow-x-auto no-scrollbar">
+          {COLLECTIONS.map((col) => (
+            <button
+              key={col}
+              onClick={() => setActiveCollection(col)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                activeCollection === col
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card text-muted-foreground border border-border"
+              }`}
+            >
+              {col}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Pitch Detector */}
+      <PitchDetector />
+
       {/* Song list */}
-      <div className="flex-1 overflow-y-auto pb-24">
+      <div className="flex-1 overflow-y-auto pb-24 px-4 space-y-3">
         {filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <p className="text-sm">
@@ -58,24 +134,46 @@ export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false 
             </p>
           </div>
         )}
-        {filtered.map((song) => (
-          <button
-            key={song.id}
-            onClick={() => onSongSelect(song)}
-            className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-card transition-colors"
-          >
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-[15px] truncate">{song.title}</p>
-              <p className="text-xs text-muted-foreground truncate">
-                {song.artist} · {song.collection}
-              </p>
-            </div>
-            {isFavorite(song.id) && (
-              <Heart size={14} className="text-accent shrink-0" fill="currentColor" />
-            )}
-            <span className="text-muted-foreground text-lg">›</span>
-          </button>
-        ))}
+        {filtered.map((song) => {
+          const songKey = getSongKey(song);
+          const isMinor = song.lyrics.match(/\[([A-G][#b]?m)/);
+          const keyLabel = isMinor ? `${songKey} minor` : getKeyLabel(songKey);
+
+          return (
+            <button
+              key={song.id}
+              onClick={() => onSongSelect(song)}
+              className="w-full text-left rounded-xl bg-card border border-border p-4 active:scale-[0.98] transition-all"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-base truncate">{song.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {song.artist} • Ton: {keyLabel}
+                  </p>
+                  <div className="flex gap-2 mt-2.5 flex-wrap">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-[11px] font-medium text-muted-foreground">
+                      ♪ Acorduri
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-[11px] font-medium text-muted-foreground">
+                      ☰ Versuri
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 mt-1">
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-foreground ${getKeyColor(songKey)}`}>
+                    {songKey}
+                  </div>
+                  <Heart
+                    size={20}
+                    className={isFavorite(song.id) ? "text-amber-500" : "text-muted-foreground/40"}
+                    fill={isFavorite(song.id) ? "currentColor" : "none"}
+                  />
+                </div>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
