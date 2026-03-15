@@ -1,17 +1,23 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { X, Sparkles, Loader2 } from "lucide-react";
-import { useAddSong } from "@/hooks/useSongs";
+import { useAddSong, useSongs } from "@/hooks/useSongs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/useLanguage";
-
-const COLLECTIONS = ["Speranța", "Boanerges", "Hymns"];
 
 interface AddSongFormProps {
   onClose: () => void;
 }
 
 export function AddSongForm({ onClose }: AddSongFormProps) {
+  const { data: songs = [] } = useSongs();
+  const collections = useMemo(() => {
+    const unique = new Set(songs.map(s => s.collection));
+    // Ensure at least these defaults exist
+    ["Speranța", "Boanerges", "Hymns", "Eldad", "Elim Harmony"].forEach(c => unique.add(c));
+    return Array.from(unique).sort();
+  }, [songs]);
+
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [collection, setCollection] = useState("Hymns");
@@ -90,7 +96,7 @@ export function AddSongForm({ onClose }: AddSongFormProps) {
         <div>
           <label className="text-xs text-muted-foreground font-medium mb-1 block">{t("addSong.collection")}</label>
           <div className="flex gap-2 flex-wrap">
-            {COLLECTIONS.map((col) => (
+            {collections.map((col) => (
               <button key={col} onClick={() => setCollection(col)}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                   collection === col ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground"
