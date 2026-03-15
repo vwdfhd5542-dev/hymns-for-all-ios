@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Song, transposeLine } from "@/data/songs";
-import { useUpdateSong } from "@/hooks/useSongs";
+import { useUpdateSong, useDeleteSong } from "@/hooks/useSongs";
 import { usePitchDetection } from "@/hooks/usePitchDetection";
 import { chordEnrichmentMap } from "@/data/chordDiagrams";
 import { ChordDiagramDialog } from "@/components/ChordDiagram";
-import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Mic, MicOff, Sparkles, Globe, Loader2 } from "lucide-react";
+import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Mic, MicOff, Sparkles, Globe, Loader2, Trash2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage, languageNames, languageFlags, Language } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,7 +61,10 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
   const [showTranslateMenu, setShowTranslateMenu] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const animRef = useRef<number>();
+  const [isGeneratingChords, setIsGeneratingChords] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const updateSong = useUpdateSong();
+  const deleteSong = useDeleteSong();
   const pitch = usePitchDetection();
   const { t } = useLanguage();
 
@@ -108,6 +111,35 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
     );
   };
 
+  const handleDeleteSong = () => {
+    deleteSong.mutate(song.id, {
+      onSuccess: () => {
+        toast.success(t("song.deleted"));
+        onBack();
+      },
+      onError: () => toast.error(t("song.deleteError")),
+    });
+  };
+
+  const handleAiChords = async () => {
+    setIsGeneratingChords(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("auto-chords", {
+        body: { title: song.title, artist: song.artist, lyrics: editLyrics },
+      });
+      if (error) throw error;
+      if (data?.lyrics) {
+        setEditLyrics(data.lyrics);
+        toast.success(t("addSong.chordsAdded"));
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(t("addSong.chordsError"));
+    } finally {
+      setIsGeneratingChords(false);
+    }
+  };
+
   const handleTranslate = async (lang: Language) => {
     setShowTranslateMenu(false);
     if (lang === "ro") {
@@ -151,6 +183,10 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
           <div className="flex items-center gap-0.5">
             {isEditing ? (
               <>
+                <button onClick={handleAiChords} disabled={isGeneratingChords}
+                  className="min-w-[40px] min-h-[44px] flex items-center justify-center text-primary">
+                  {isGeneratingChords ? <Loader2 size={17} className="animate-spin" /> : <Wand2 size={17} />}
+                </button>
                 <button onClick={() => { setIsEditing(false); setEditLyrics(song.lyrics); }}
                   className="min-w-[40px] min-h-[44px] flex items-center justify-center text-muted-foreground">
                   <X size={18} />
@@ -191,6 +227,10 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
                 <button onClick={() => { setIsEditing(true); setEditLyrics(song.lyrics); }}
                   className="min-w-[40px] min-h-[44px] flex items-center justify-center text-muted-foreground">
                   <Edit3 size={17} />
+                </button>
+                <button onClick={() => setShowDeleteConfirm(true)}
+                  className="min-w-[40px] min-h-[44px] flex items-center justify-center text-destructive">
+                  <Trash2 size={17} />
                 </button>
                 <button onClick={() => setShowTools((v) => !v)}
                   className={`min-w-[40px] min-h-[44px] flex items-center justify-center ${showTools ? "text-primary" : "text-muted-foreground"}`}>
@@ -413,6 +453,26 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
         open={!!selectedChord}
         onClose={() => setSelectedChord(null)}
       />
+
+      {/* Delete confirmation */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl p-6 mx-6 max-w-sm w-full shadow-lg">
+            <h3 className="text-lg font-bold mb-2">{t("song.deleteTitle")}</h3>
+            <p className="text-sm text-muted-foreground mb-5">{t("song.deleteConfirm")}</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium">
+                {t("addSong.cancel")}
+              </button>
+              <button onClick={handleDeleteSong}
+                className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-medium">
+                {t("song.delete")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
