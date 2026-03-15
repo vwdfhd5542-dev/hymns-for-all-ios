@@ -158,6 +158,10 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
 
   const translateLanguages: Language[] = ["ro", "es", "en"];
 
+  if (showTablature) {
+    return <TablatureView song={song} onBack={() => setShowTablature(false)} />;
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
