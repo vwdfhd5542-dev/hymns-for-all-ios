@@ -189,6 +189,7 @@ function FingerpickingTab({ chord }: { chord: string }) {
   const [tab, setTab] = useState<Record<ChordLevel, string>>({} as any);
   const [level, setLevel] = useState<ChordLevel>("basic");
   const [loading, setLoading] = useState(false);
+  const player = useTablaturePlayer();
 
   const currentTab = tab[level];
 
