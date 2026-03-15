@@ -214,6 +214,10 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
                     </div>
                   )}
                 </div>
+                <button onClick={() => setShowTablature(true)}
+                  className="min-w-[40px] min-h-[44px] flex items-center justify-center text-muted-foreground">
+                  <Guitar size={17} />
+                </button>
                 <button onClick={() => { setIsEditing(true); setEditLyrics(song.lyrics); }}
                   className="min-w-[40px] min-h-[44px] flex items-center justify-center text-muted-foreground">
                   <Edit3 size={17} />
