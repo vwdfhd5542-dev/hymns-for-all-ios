@@ -33,9 +33,10 @@ export function useSongs() {
 
 export function useAddSong() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (song: { title: string; artist: string; collection: string; lyrics: string }) => {
-      const { data, error } = await supabase.from("songs").insert(song).select().single();
+      const { data, error } = await supabase.from("songs").insert({ ...song, created_by: user?.id }).select().single();
       if (error) throw error;
       return data;
     },
