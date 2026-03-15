@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Moon, Sun, Info, Smartphone, Droplets, ChevronDown, ChevronUp, Mic, Music, Guitar, Sparkles, FolderOpen, Scroll, Edit3, Globe } from "lucide-react";
+import { Moon, Sun, Info, Smartphone, Droplets, ChevronDown, ChevronUp, Mic, Music, Guitar, Sparkles, FolderOpen, Scroll, Edit3, Globe, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { useLanguage, Language, languageNames, languageFlags } from "@/hooks/useLanguage";
 
