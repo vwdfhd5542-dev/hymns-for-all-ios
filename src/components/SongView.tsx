@@ -101,20 +101,6 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
     );
   };
 
-  const complexChordMap: Record<string, string[]> = {
-    C: ["Cmaj7", "C7", "Cadd9", "Csus4", "Csus2"],
-    D: ["Dmaj7", "D7", "Dadd9", "Dsus4", "Dsus2"],
-    E: ["Emaj7", "E7", "Eadd9", "Esus4"],
-    F: ["Fmaj7", "F7", "Fadd9", "Fsus4"],
-    G: ["Gmaj7", "G7", "Gadd9", "Gsus4", "Gsus2"],
-    A: ["Amaj7", "A7", "Aadd9", "Asus4", "Asus2"],
-    B: ["Bmaj7", "B7", "Badd9", "Bsus4"],
-    Am: ["Am7", "Am9", "Amadd9"],
-    Bm: ["Bm7", "Bm9"],
-    Dm: ["Dm7", "Dm9"],
-    Em: ["Em7", "Em9"],
-  };
-
   const uniqueChords = [...new Set(song.lyrics.match(/\[([^\]]+)\]/g)?.map(c => c.slice(1, -1)) || [])];
 
   return (
