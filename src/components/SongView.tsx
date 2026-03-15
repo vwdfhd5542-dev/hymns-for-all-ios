@@ -228,6 +228,10 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
                   className="min-w-[40px] min-h-[44px] flex items-center justify-center text-muted-foreground">
                   <Edit3 size={17} />
                 </button>
+                <button onClick={() => setShowDeleteConfirm(true)}
+                  className="min-w-[40px] min-h-[44px] flex items-center justify-center text-destructive">
+                  <Trash2 size={17} />
+                </button>
                 <button onClick={() => setShowTools((v) => !v)}
                   className={`min-w-[40px] min-h-[44px] flex items-center justify-center ${showTools ? "text-primary" : "text-muted-foreground"}`}>
                   <Type size={18} />
