@@ -149,6 +149,7 @@ const translations = {
   "tab.generate": { ro: "Generează tablatură", es: "Generar tablatura", en: "Generate tablature" },
   "tab.regenerate": { ro: "Regenerează", es: "Regenerar", en: "Regenerate" },
   "tab.generating": { ro: "Se generează...", es: "Generando...", en: "Generating..." },
+  "tab.generatingHint": { ro: "Generarea tablaturilor complete poate dura câteva minute", es: "La generación de tablaturas completas puede tardar varios minutos", en: "Full tablature generation may take several minutes" },
   "tab.error": { ro: "Eroare la generare", es: "Error al generar", en: "Generation error" },
   "tab.rateLimited": { ro: "Prea multe cereri, reîncearcă mai târziu", es: "Demasiadas solicitudes, intenta más tarde", en: "Too many requests, try later" },
   "tab.empty": { ro: "Apasă butonul pentru a genera tablatura", es: "Pulsa el botón para generar la tablatura", en: "Press the button to generate tablature" },
