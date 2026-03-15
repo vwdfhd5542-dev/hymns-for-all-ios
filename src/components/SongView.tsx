@@ -299,7 +299,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
               />
             </div>
           ) : (
-            <div className="font-mono-lyrics bg-card rounded-2xl border border-border p-5 overflow-x-auto" style={{ fontSize: `${fontSize}px` }}>
+            <div className="font-mono-lyrics bg-card rounded-2xl border border-border p-5 overflow-hidden" style={{ fontSize: `${fontSize}px` }}>
               {lines.map((line, i) => {
                 if (line.trim() === "") {
                   return <div key={i} className="h-5" />;
