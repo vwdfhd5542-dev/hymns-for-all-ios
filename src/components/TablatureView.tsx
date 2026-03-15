@@ -146,6 +146,19 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
             )}
           </button>
 
+          {/* Generation progress indicator */}
+          {isLoading && (
+            <div className="bg-card rounded-2xl border border-border p-4 mb-4">
+              <div className="flex items-center gap-3 mb-3">
+                <Loader2 size={18} className="animate-spin text-primary shrink-0" />
+                <p className="text-xs text-muted-foreground">{t("tab.generatingHint" as any)}</p>
+              </div>
+              <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: '60%', animation: 'pulse 2s ease-in-out infinite, progressIndeterminate 3s ease-in-out infinite' }} />
+              </div>
+            </div>
+          )}
+
           {/* Tablature display with player controls */}
           {currentTab && (
             <div className="bg-card rounded-2xl border border-border overflow-hidden mb-4">

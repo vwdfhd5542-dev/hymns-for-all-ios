@@ -252,22 +252,27 @@ export const songs: Song[] = [
   },
   {
     id: "10",
-    title: "Har nemărginit",
-    artist: "Speranța",
+    title: "Mărețul Har",
+    artist: "Traditional",
     collection: "Hymns",
-    lyrics: `[G]Har nemăr[C]ginit,
-[G]Ce dulce [D]sunet,
-[G]Ce m-a sal[C]vat pe mine,
-[G]Un om [D]pier[G]dut.
+    lyrics: `[G]Mărețul [G7]har, ce [C]dulce [G]sunet,
+[G]Ce m-a sal[Em]vat pe [D]mine,
+[G]Am fost pier[G7]dut, dar [C]sunt gă[G]sit,
+[G]Am fost [D]orb, dar [G]văd.
 
-[G]Am fost or[C]b dar văd,
-[G]Am fost pier[D]dut și-s aflat,
-[G]Harul m-a [C]căutat,
-[G]Și m-a [D]sal[G]vat.
+[G]Prin har am [G7]fost în[C]vățat să [G]cred,
+[G]Și harul [Em]frica [D]mi-a luat,
+[G]Ce preți[G7]os mi-a [C]fost ha[G]rul,
+[G]Din clipa [D]când am [G]crezut!
 
-[Em]Prin har am [C]fost salvat,
-[G]Prin credin[D]ță primesc,
-[Em]Nu prin fap[C]tele mele,
-[G]Ci prin [D]harul [G]Său.`
+[G]Prin mul[G7]te pri[C]mejdii [G]grele,
+[G]Am tre[Em]cut pe [D]drum,
+[G]Dar ha[G7]rul m-a [C]sal[G]vat,
+[G]Și el [D]mă va [G]duce-acasă.
+
+[G]Când vom [G7]fi a[C]colo [G]sus,
+[G]De zece [Em]mii de [D]ani,
+[G]Strălucind [G7]ca [C]soa[G]rele,
+[G]Vom cânta [D]la fel [G]harul Său.`
   },
 ];
