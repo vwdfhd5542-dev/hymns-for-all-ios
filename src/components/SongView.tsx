@@ -2,7 +2,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Song, transposeLine } from "@/data/songs";
 import { useUpdateSong } from "@/hooks/useSongs";
 import { usePitchDetection } from "@/hooks/usePitchDetection";
-import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Guitar, Mic, MicOff } from "lucide-react";
+import { chordEnrichmentMap } from "@/data/chordDiagrams";
+import { ChordDiagramDialog } from "@/components/ChordDiagram";
+import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Guitar, Mic, MicOff, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface SongViewProps {
@@ -12,11 +14,15 @@ interface SongViewProps {
   onToggleFavorite: () => void;
 }
 
-function parseChordsAbove(line: string, transpose: number): { chords: string; lyrics: string } | null {
+function enrichChord(chord: string): string {
+  return chordEnrichmentMap[chord] || chord;
+}
+
+function parseChordsAbove(line: string, transpose: number, enrich: boolean): { chords: { text: string; pos: number }[]; lyrics: string } | null {
   const transposed = transposeLine(line, transpose);
   const regex = /\[([^\]]+)\]/g;
   let match;
-  let chordLine = "";
+  const chords: { text: string; pos: number }[] = [];
   let lyricLine = "";
   let lastIndex = 0;
   let hasChords = false;
@@ -24,11 +30,9 @@ function parseChordsAbove(line: string, transpose: number): { chords: string; ly
   while ((match = regex.exec(transposed)) !== null) {
     hasChords = true;
     const textBefore = transposed.slice(lastIndex, match.index).replace(/\[[^\]]*\]/g, "");
-    while (chordLine.length < lyricLine.length + textBefore.length) {
-      chordLine += " ";
-    }
-    chordLine += match[1];
     lyricLine += textBefore;
+    const chordText = enrich ? enrichChord(match[1]) : match[1];
+    chords.push({ text: chordText, pos: lyricLine.length });
     lastIndex = regex.lastIndex;
   }
 
@@ -36,7 +40,7 @@ function parseChordsAbove(line: string, transpose: number): { chords: string; ly
   lyricLine += remaining;
 
   if (!hasChords) return null;
-  return { chords: chordLine, lyrics: lyricLine };
+  return { chords, lyrics: lyricLine };
 }
 
 export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongViewProps) {
@@ -48,6 +52,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
   const [isEditing, setIsEditing] = useState(false);
   const [editLyrics, setEditLyrics] = useState(song.lyrics);
   const [showComplexChords, setShowComplexChords] = useState(false);
+  const [selectedChord, setSelectedChord] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const animRef = useRef<number>();
   const updateSong = useUpdateSong();
@@ -94,20 +99,6 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
         onError: () => toast.error("Eroare la salvare"),
       }
     );
-  };
-
-  const complexChordMap: Record<string, string[]> = {
-    C: ["Cmaj7", "C7", "Cadd9", "Csus4", "Csus2"],
-    D: ["Dmaj7", "D7", "Dadd9", "Dsus4", "Dsus2"],
-    E: ["Emaj7", "E7", "Eadd9", "Esus4"],
-    F: ["Fmaj7", "F7", "Fadd9", "Fsus4"],
-    G: ["Gmaj7", "G7", "Gadd9", "Gsus4", "Gsus2"],
-    A: ["Amaj7", "A7", "Aadd9", "Asus4", "Asus2"],
-    B: ["Bmaj7", "B7", "Badd9", "Bsus4"],
-    Am: ["Am7", "Am9", "Amadd9"],
-    Bm: ["Bm7", "Bm9"],
-    Dm: ["Dm7", "Dm9"],
-    Em: ["Em7", "Em9"],
   };
 
   const uniqueChords = [...new Set(song.lyrics.match(/\[([^\]]+)\]/g)?.map(c => c.slice(1, -1)) || [])];
@@ -202,10 +193,10 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Acorduri complexe</span>
+              <span className="text-xs text-muted-foreground font-medium">Acorduri înflorite</span>
               <button onClick={() => setShowComplexChords((v) => !v)}
                 className={`w-9 h-9 flex items-center justify-center rounded-lg border ${showComplexChords ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}>
-                <Guitar size={14} />
+                <Sparkles size={14} />
               </button>
             </div>
           </div>
@@ -288,26 +279,9 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
           </div>
 
           {showComplexChords && (
-            <div className="mb-6 bg-card border border-border rounded-2xl p-4 animate-fade-in">
-              <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Variante acorduri</p>
-              <div className="space-y-2.5">
-                {uniqueChords.map((chord) => {
-                  const base = chord.replace(/\d.*$/, "").replace(/sus.*$/, "").replace(/add.*$/, "").replace(/maj.*$/, "");
-                  const variants = complexChordMap[base] || complexChordMap[chord] || [];
-                  if (variants.length === 0) return null;
-                  return (
-                    <div key={chord} className="flex items-center gap-2 flex-wrap">
-                      <span className="text-primary font-bold text-sm min-w-[3rem]">{chord}</span>
-                      <span className="text-muted-foreground text-[10px]">→</span>
-                      {variants.map((v) => (
-                        <span key={v} className="text-[11px] bg-muted px-2 py-0.5 rounded-md font-mono text-muted-foreground">
-                          {v}
-                        </span>
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="mb-4 inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full">
+              <Sparkles size={12} />
+              Acorduri înflorite activate
             </div>
           )}
 
@@ -331,7 +305,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
                   return <div key={i} className="h-5" />;
                 }
 
-                const result = parseChordsAbove(line, transpose);
+                const result = parseChordsAbove(line, transpose, showComplexChords);
 
                 if (!result) {
                   const transposed = transposeLine(line, transpose);
@@ -343,10 +317,28 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
                   );
                 }
 
+                // Build chord line with spacing
+                const chordElements: React.ReactNode[] = [];
+                let lastEnd = 0;
+                result.chords.forEach((c, ci) => {
+                  const spaces = Math.max(0, c.pos - lastEnd);
+                  if (spaces > 0) {
+                    chordElements.push(<span key={`sp-${ci}`}>{" ".repeat(spaces)}</span>);
+                  }
+                  chordElements.push(
+                    <span key={`ch-${ci}`}
+                      className="cursor-pointer hover:underline active:opacity-70 transition-opacity"
+                      onClick={() => setSelectedChord(c.text)}>
+                      {c.text}
+                    </span>
+                  );
+                  lastEnd = c.pos + c.text.length;
+                });
+
                 return (
                   <div key={i} className="mb-1">
                     <div className="text-primary font-bold whitespace-pre" style={{ fontSize: `${Math.max(11, fontSize - 2)}px`, lineHeight: 1.4 }}>
-                      {result.chords}
+                      {chordElements}
                     </div>
                     <div className="whitespace-pre-wrap break-words leading-relaxed">
                       {result.lyrics}
@@ -358,6 +350,12 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
           )}
         </div>
       </div>
+
+      <ChordDiagramDialog
+        chord={selectedChord}
+        open={!!selectedChord}
+        onClose={() => setSelectedChord(null)}
+      />
     </div>
   );
 }
