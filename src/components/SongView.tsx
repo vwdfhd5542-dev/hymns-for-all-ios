@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Song, transposeLine } from "@/data/songs";
 import { useUpdateSong } from "@/hooks/useSongs";
-import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Guitar } from "lucide-react";
+import { usePitchDetection } from "@/hooks/usePitchDetection";
+import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Guitar, Mic, MicOff } from "lucide-react";
 import { toast } from "sonner";
 
 interface SongViewProps {
@@ -50,11 +51,14 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
   const scrollRef = useRef<HTMLDivElement>(null);
   const animRef = useRef<number>();
   const updateSong = useUpdateSong();
+  const pitch = usePitchDetection();
 
   const lines = song.lyrics.split("\n");
 
+  // Extract key with minor detection
   const keyMatch = song.lyrics.match(/\[([A-G][#b]?m?)/);
   const songKey = keyMatch ? keyMatch[1] : "?";
+  const isMinor = songKey.endsWith("m");
 
   useEffect(() => {
     if (!autoScroll || !scrollRef.current) {
@@ -109,20 +113,18 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
   const uniqueChords = [...new Set(song.lyrics.match(/\[([^\]]+)\]/g)?.map(c => c.slice(1, -1)) || [])];
 
   return (
-    <div className="flex flex-col h-full animate-slide-in-right">
-      {/* Top bar with safe area */}
+    <div className="flex flex-col h-full">
+      {/* Apple-style header */}
       <div className="glass fixed top-0 left-0 right-0 z-40 border-b border-border safe-top">
-        <div className="flex items-center h-14 px-3 max-w-3xl mx-auto">
+        <div className="flex items-center h-12 px-2 max-w-3xl mx-auto">
           <button onClick={onBack} className="flex items-center gap-0.5 text-primary min-w-[44px] min-h-[44px] justify-center">
             <ChevronLeft size={22} />
+            <span className="text-sm font-medium -ml-1">Înapoi</span>
           </button>
 
-          <div className="flex-1 text-center min-w-0 px-2">
-            <p className="font-bold text-sm truncate">{song.title}</p>
-            <p className="text-[10px] text-muted-foreground truncate">{song.artist} · {songKey}</p>
-          </div>
+          <div className="flex-1" />
 
-          <div className="flex items-center">
+          <div className="flex items-center gap-0.5">
             {isEditing ? (
               <>
                 <button onClick={() => { setIsEditing(false); setEditLyrics(song.lyrics); }}
@@ -214,28 +216,79 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
       <div ref={scrollRef} className="flex-1 overflow-y-auto pb-8 px-4"
         style={{ paddingTop: showTools && !isEditing ? "20rem" : "7rem" }}>
         <div className="max-w-3xl mx-auto">
-          <div className="mb-6">
-            <div className="flex items-start gap-3 mb-3">
-              <div className="flex-1">
-                <h2 className="text-xl font-bold">{song.title}</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {song.artist} · {song.collection}
-                </p>
+          {/* Song header - Apple style card */}
+          <div className="mb-6 bg-card rounded-2xl border border-border p-5">
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-primary/15 flex items-center justify-center shrink-0">
+                <span className="text-primary font-bold text-lg">{songKey}</span>
               </div>
-              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                <span className="text-primary font-bold text-sm">{songKey}</span>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl font-bold leading-tight">{song.title}</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {song.artist}
+                </p>
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                    {song.collection}
+                  </span>
+                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                    {isMinor ? "Minor" : "Major"}
+                  </span>
+                </div>
               </div>
             </div>
 
             {transpose !== 0 && (
-              <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-medium px-3 py-1 rounded-full">
+              <div className="mt-3 inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-medium px-3 py-1 rounded-full">
                 Transpus: {transpose > 0 ? "+" : ""}{transpose} semitonuri
               </div>
             )}
           </div>
 
+          {/* Inline Pitch Detector */}
+          <div className="mb-4">
+            <button
+              onClick={pitch.isListening ? pitch.stopListening : pitch.startListening}
+              className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 transition-all border ${
+                pitch.isListening
+                  ? "bg-primary/10 border-primary/30"
+                  : "bg-card border-border"
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                pitch.isListening ? "bg-primary text-primary-foreground animate-pulse" : "bg-muted text-muted-foreground"
+              }`}>
+                {pitch.isListening ? <Mic size={18} /> : <MicOff size={18} />}
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-semibold">
+                  {pitch.isListening ? "Ascultare live..." : "Detectare ton"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {pitch.isListening
+                    ? pitch.detectedNote
+                      ? `Nota: ${pitch.detectedNote}`
+                      : "Cântă sau redă melodia..."
+                    : "Apasă pentru a detecta tonul"}
+                </p>
+              </div>
+              {pitch.isListening && pitch.detectedKey && (
+                <div className="flex flex-col items-center">
+                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+                    <span className="text-primary-foreground font-bold text-sm">
+                      {pitch.detectedKey}{pitch.keyQuality === "minor" ? "m" : ""}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground mt-0.5">
+                    {pitch.keyQuality === "minor" ? "minor" : "major"} · {pitch.confidence}%
+                  </span>
+                </div>
+              )}
+            </button>
+          </div>
+
           {showComplexChords && (
-            <div className="mb-6 bg-card border border-border rounded-xl p-4 animate-fade-in">
+            <div className="mb-6 bg-card border border-border rounded-2xl p-4 animate-fade-in">
               <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Variante acorduri</p>
               <div className="space-y-2.5">
                 {uniqueChords.map((chord) => {
@@ -272,7 +325,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
               />
             </div>
           ) : (
-            <div className="font-mono-lyrics" style={{ fontSize: `${fontSize}px` }}>
+            <div className="font-mono-lyrics bg-card rounded-2xl border border-border p-5" style={{ fontSize: `${fontSize}px` }}>
               {lines.map((line, i) => {
                 if (line.trim() === "") {
                   return <div key={i} className="h-5" />;

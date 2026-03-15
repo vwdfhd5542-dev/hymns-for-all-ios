@@ -93,23 +93,42 @@
     --sidebar-ring: 152 69% 45%;
   }
 
-  /* Liquid Glass theme */
-  .glass-theme {
-    --card: 0 0% 100% / 0.08;
+  /* Liquid Glass theme - dark */
+  .glass-theme.dark {
+    --card: 240 3% 11%;
     --border: 0 0% 100% / 0.15;
     --muted: 0 0% 100% / 0.06;
   }
 
-  .glass-theme .glass-card {
+  .glass-theme.dark .bg-card {
     background: hsla(0, 0%, 100%, 0.08);
     backdrop-filter: blur(40px) saturate(180%);
     -webkit-backdrop-filter: blur(40px) saturate(180%);
-    border: 1px solid hsla(0, 0%, 100%, 0.15);
+    border-color: hsla(0, 0%, 100%, 0.15);
   }
 
-  .glass-theme.light .glass-card {
-    background: hsla(0, 0%, 100%, 0.6);
-    border: 1px solid hsla(0, 0%, 100%, 0.4);
+  /* Liquid Glass theme - light */
+  .glass-theme.light {
+    --card: 0 0% 98%;
+    --border: 0 0% 0% / 0.12;
+    --muted: 0 0% 0% / 0.05;
+  }
+
+  .glass-theme.light .bg-card {
+    background: hsla(0, 0%, 100%, 0.55);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border-color: hsla(0, 0%, 0%, 0.1);
+    box-shadow: 0 1px 3px hsla(0, 0%, 0%, 0.06);
+  }
+
+  .glass-theme.light .glass {
+    background: hsla(0, 0%, 100%, 0.75);
+    border-color: hsla(0, 0%, 0%, 0.1);
+  }
+
+  .glass-theme.light .border-border {
+    border-color: hsla(0, 0%, 0%, 0.1);
   }
 }
 
