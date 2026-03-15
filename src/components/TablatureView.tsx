@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { ChevronLeft, Loader2, Guitar, Play, Square } from "lucide-react";
+import { ChevronLeft, Loader2, Guitar, Play, Square, Plus, Minus } from "lucide-react";
 import { Song } from "@/data/songs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/useLanguage";
-import { useTablaturePlayer, parseTablature } from "@/hooks/useTablaturePlayer";
+import { useTablaturePlayer, transposeParsedTab } from "@/hooks/useTablaturePlayer";
 import { TablatureDisplay } from "@/components/TablatureDisplay";
 
 type Level = "basic" | "intermediate" | "advanced";
@@ -27,42 +27,29 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
   const [tablature, setTablature] = useState<Record<string, Record<string, string>>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [bpm, setBpm] = useState(100);
+  const [transpose, setTranspose] = useState(0);
   const player = useTablaturePlayer();
 
-  const currentTab = tablature[mode]?.[level];
-  const GENERATION_TIMEOUT_MS = 30000;
+  const rawTab = tablature[mode]?.[level];
+  const currentTab = rawTab ? transposeParsedTab(rawTab, transpose) : undefined;
 
   const generate = async () => {
     setIsLoading(true);
     try {
-      const result = await Promise.race([
-        supabase.functions.invoke("generate-tablature", {
-          body: { lyrics: song.lyrics, title: song.title, artist: song.artist, level, mode },
-        }),
-        new Promise<never>((_, reject) => {
-          window.setTimeout(() => reject(new Error("GENERATION_TIMEOUT")), GENERATION_TIMEOUT_MS);
-        }),
-      ]);
-
-      const { data, error } = result as {
-        data: { tablature?: string } | null;
-        error: { status?: number } | null;
-      };
+      const { data, error } = await supabase.functions.invoke("generate-tablature", {
+        body: { lyrics: song.lyrics, title: song.title, artist: song.artist, level, mode },
+      });
       if (error) throw error;
-
       if (data?.tablature) {
         setTablature(prev => ({
           ...prev,
           [mode]: { ...(prev[mode] || {}), [level]: data.tablature },
         }));
-      } else {
-        throw new Error("EMPTY_TABLATURE");
+        setTranspose(0);
       }
     } catch (err: any) {
       console.error(err);
-      if (err?.message === "GENERATION_TIMEOUT") {
-        toast.error("La generación tardó demasiado. He acortado el proceso para que ya no se quede colgado.");
-      } else if (err?.status === 429) {
+      if (err?.status === 429) {
         toast.error(t("tab.rateLimited"));
       } else {
         toast.error(t("tab.error"));
@@ -125,7 +112,7 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
             </button>
           </div>
 
-          {/* Level selector - using i18n */}
+          {/* Level selector */}
           <div className="flex gap-2 mb-4">
             {levels.map((l) => (
               <button
@@ -162,12 +149,12 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
           {/* Tablature display with player controls */}
           {currentTab && (
             <div className="bg-card rounded-2xl border border-border overflow-hidden mb-4">
-              {/* Player controls */}
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+              {/* Player + Transpose controls */}
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
                 <button
                   onClick={() => player.isPlaying ? player.stop() : player.play(currentTab, bpm)}
                   disabled={player.isLoading}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-50 ${
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-50 shrink-0 ${
                     player.isPlaying
                       ? "bg-destructive text-destructive-foreground"
                       : "bg-primary text-primary-foreground"
@@ -185,7 +172,7 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
                 </div>
 
                 {/* BPM control */}
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 shrink-0">
                   <span className="text-[10px] text-muted-foreground font-medium">{t("tab.tempo")}</span>
                   <input
                     type="range"
@@ -194,9 +181,41 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
                     step={5}
                     value={bpm}
                     onChange={(e) => setBpm(parseInt(e.target.value))}
-                    className="w-16 accent-primary h-1"
+                    className="w-14 accent-primary h-1"
                   />
-                  <span className="text-[10px] font-mono text-foreground w-8">{bpm}</span>
+                  <span className="text-[10px] font-mono text-foreground w-7">{bpm}</span>
+                </div>
+              </div>
+
+              {/* Transpose controls */}
+              <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30">
+                <span className="text-xs font-medium text-muted-foreground">Transpose</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setTranspose((prev) => Math.max(-12, prev - 1))}
+                    className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center active:scale-95 transition-all"
+                  >
+                    <Minus size={14} className="text-foreground" />
+                  </button>
+                  <span className={`text-xs font-mono w-8 text-center font-semibold ${
+                    transpose === 0 ? "text-muted-foreground" : transpose > 0 ? "text-green-600" : "text-red-500"
+                  }`}>
+                    {transpose > 0 ? `+${transpose}` : transpose}
+                  </span>
+                  <button
+                    onClick={() => setTranspose((prev) => Math.min(12, prev + 1))}
+                    className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center active:scale-95 transition-all"
+                  >
+                    <Plus size={14} className="text-foreground" />
+                  </button>
+                  {transpose !== 0 && (
+                    <button
+                      onClick={() => setTranspose(0)}
+                      className="text-[10px] text-primary font-semibold ml-1"
+                    >
+                      Reset
+                    </button>
+                  )}
                 </div>
               </div>
 

@@ -1,21 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import * as Tone from "tone";
 
-// Standard guitar tuning frequencies (Hz)
+// Standard guitar tuning frequencies (Hz) - e B G D A E
 const OPEN_STRINGS = [329.63, 246.94, 196.0, 146.83, 110.0, 82.41];
 
 function fretToFreq(stringIndex: number, fret: number): number {
   return OPEN_STRINGS[stringIndex] * Math.pow(2, fret / 12);
-}
-
-// Map frequency to nearest note name for the Sampler
-function freqToNoteName(freq: number): string {
-  const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-  const midi = Math.round(12 * Math.log2(freq / 440) + 69);
-  const clampedMidi = Math.max(40, Math.min(midi, 84)); // guitar range E2-C6
-  const noteName = noteNames[clampedMidi % 12];
-  const octave = Math.floor(clampedMidi / 12) - 1;
-  return `${noteName}${octave}`;
 }
 
 export interface TabNote {
@@ -97,78 +86,95 @@ export function parseTablature(tab: string): ParsedTablature {
   return { notes, totalColumns: globalColOffset, groups };
 }
 
-// Guitar nylon samples from nbrosowsky/tonejs-instruments (CC-by 3.0)
-const SAMPLE_BASE = "https://raw.githubusercontent.com/nbrosowsky/tonejs-instruments/master/samples/guitar-nylon";
-const SAMPLE_NOTES: Record<string, string> = {
-  A2: `${SAMPLE_BASE}/A2.mp3`,
-  A3: `${SAMPLE_BASE}/A3.mp3`,
-  A4: `${SAMPLE_BASE}/A4.mp3`,
-  A5: `${SAMPLE_BASE}/A5.mp3`,
-  B1: `${SAMPLE_BASE}/B1.mp3`,
-  B2: `${SAMPLE_BASE}/B2.mp3`,
-  B3: `${SAMPLE_BASE}/B3.mp3`,
-  B4: `${SAMPLE_BASE}/B4.mp3`,
-  D2: `${SAMPLE_BASE}/D2.mp3`,
-  D3: `${SAMPLE_BASE}/D3.mp3`,
-  D4: `${SAMPLE_BASE}/D4.mp3`,
-  D5: `${SAMPLE_BASE}/D5.mp3`,
-  E2: `${SAMPLE_BASE}/E2.mp3`,
-  E3: `${SAMPLE_BASE}/E3.mp3`,
-  E4: `${SAMPLE_BASE}/E4.mp3`,
-  E5: `${SAMPLE_BASE}/E5.mp3`,
-  "F#2": `${SAMPLE_BASE}/Fs2.mp3`,
-  "F#3": `${SAMPLE_BASE}/Fs3.mp3`,
-  "F#4": `${SAMPLE_BASE}/Fs4.mp3`,
-  "F#5": `${SAMPLE_BASE}/Fs5.mp3`,
-  G2: `${SAMPLE_BASE}/G2.mp3`,
-  G3: `${SAMPLE_BASE}/G3.mp3`,
-  G4: `${SAMPLE_BASE}/G4.mp3`,
-  G5: `${SAMPLE_BASE}/G5.mp3`,
-};
+// Transpose parsed tablature by semitones
+export function transposeParsedTab(tab: string, semitones: number): string {
+  if (semitones === 0) return tab;
 
-let sharedSampler: Tone.Sampler | null = null;
-let sharedReverb: Tone.Reverb | null = null;
-let samplerReady = false;
-let samplerLoading = false;
-let samplerCallbacks: (() => void)[] = [];
+  return tab.split("\n").map((line) => {
+    const match = line.match(/^([eBGDAE])\|(.+)/);
+    if (!match) return line;
 
-async function getGuitarSampler(): Promise<Tone.Sampler> {
-  if (sharedSampler && samplerReady) return sharedSampler;
+    const label = match[1];
+    const stringIndex = ["e", "B", "G", "D", "A", "E"].indexOf(label);
+    if (stringIndex === -1) return line;
 
-  if (samplerLoading) {
-    return new Promise((resolve) => {
-      samplerCallbacks.push(() => resolve(sharedSampler!));
-    });
+    const content = match[2];
+    let result = "";
+    let ci = 0;
+
+    while (ci < content.length) {
+      const ch = content[ci];
+      if (/\d/.test(ch)) {
+        let fretStr = ch;
+        if (ci + 1 < content.length && /\d/.test(content[ci + 1])) {
+          fretStr += content[ci + 1];
+          ci++;
+        }
+        const fret = parseInt(fretStr, 10);
+        const newFret = Math.max(0, Math.min(24, fret + semitones));
+        const newFretStr = String(newFret);
+        result += newFretStr;
+        // Pad or trim to maintain alignment
+        if (newFretStr.length < fretStr.length) result += "-";
+        ci++;
+      } else {
+        result += ch;
+        ci++;
+      }
+    }
+
+    return `${label}|${result}`;
+  }).join("\n");
+}
+
+// Karplus-Strong plucked string synthesis - sounds like a real guitar
+function createPluckedString(
+  ctx: AudioContext,
+  freq: number,
+  duration: number,
+  startTime: number,
+  destination: AudioNode,
+  volume: number = 0.3
+) {
+  const sampleRate = ctx.sampleRate;
+  const totalSamples = Math.ceil(sampleRate * duration);
+  const buffer = ctx.createBuffer(1, totalSamples, sampleRate);
+  const data = buffer.getChannelData(0);
+
+  // Karplus-Strong
+  const period = Math.round(sampleRate / freq);
+  if (period < 2) return;
+
+  // Initialize with noise burst
+  for (let i = 0; i < period; i++) {
+    data[i] = (Math.random() * 2 - 1) * 0.8;
   }
 
-  samplerLoading = true;
-
-  if (!sharedReverb) {
-    sharedReverb = new Tone.Reverb({ decay: 2.0, wet: 0.18 }).toDestination();
-    await sharedReverb.generate();
+  // Apply low-pass averaging filter for natural decay
+  const damping = 0.996 - (freq > 400 ? 0.002 : 0); // slightly more damping for highs
+  for (let i = period; i < totalSamples; i++) {
+    data[i] = damping * 0.5 * (data[i - period] + data[i - period + 1]);
   }
 
-  return new Promise((resolve) => {
-    sharedSampler = new Tone.Sampler({
-      urls: SAMPLE_NOTES,
-      release: 1.2,
-      volume: -6,
-      onload: () => {
-        samplerReady = true;
-        samplerLoading = false;
-        console.info("[TablaturePlayer] Guitar samples loaded");
-        samplerCallbacks.forEach((cb) => cb());
-        samplerCallbacks = [];
-        resolve(sharedSampler!);
-      },
-      onerror: (err) => {
-        console.error("[TablaturePlayer] Sample load error:", err);
-        samplerLoading = false;
-        // Fallback: still resolve so we can try
-        resolve(sharedSampler!);
-      },
-    }).connect(sharedReverb!);
-  });
+  // Apply gentle exponential decay envelope
+  const decayRate = 3.0 / duration;
+  for (let i = 0; i < totalSamples; i++) {
+    data[i] *= Math.exp(-decayRate * (i / sampleRate)) * volume;
+  }
+
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(destination);
+  source.start(startTime);
+}
+
+let sharedCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext {
+  if (!sharedCtx || sharedCtx.state === "closed") {
+    sharedCtx = new AudioContext();
+  }
+  return sharedCtx;
 }
 
 export function useTablaturePlayer() {
@@ -189,7 +195,6 @@ export function useTablaturePlayer() {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = undefined;
     }
-    sharedSampler?.releaseAll();
   }, []);
 
   const stop = useCallback(() => {
@@ -214,19 +219,23 @@ export function useTablaturePlayer() {
           return;
         }
 
-        await Tone.start();
-        const context = Tone.getContext();
-        if (context.state !== "running") await context.resume();
+        const ctx = getAudioContext();
+        if (ctx.state === "suspended") await ctx.resume();
 
-        // Load guitar samples (cached after first load)
-        const sampler = await getGuitarSampler();
+        // Create a compressor to prevent clipping
+        const compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.value = -18;
+        compressor.knee.value = 12;
+        compressor.ratio.value = 4;
+        compressor.connect(ctx.destination);
+
         setIsLoading(false);
 
         const secondsPerColumn = 60 / bpm / 2;
-        const startAt = Tone.now() + 0.1;
+        const startAt = ctx.currentTime + 0.05;
         const totalDuration = parsed.totalColumns * secondsPerColumn + 1.5;
         totalDurationRef.current = totalDuration;
-        perfStartRef.current = performance.now() + 100;
+        perfStartRef.current = performance.now() + 50;
 
         // Group notes by column
         const notesByColumn = new Map<number, TabNote[]>();
@@ -237,11 +246,13 @@ export function useTablaturePlayer() {
 
         notesByColumn.forEach((columnNotes, column) => {
           const when = startAt + column * secondsPerColumn;
-          const duration = Math.max(secondsPerColumn * 1.5, 0.15);
-          const noteNames = columnNotes.map((n) => freqToNoteName(n.freq));
+          const duration = Math.max(secondsPerColumn * 3, 0.5);
 
-          // Schedule audio
-          sampler.triggerAttackRelease(noteNames, duration, when, 0.75);
+          // Play each note with Karplus-Strong synthesis
+          for (const note of columnNotes) {
+            const vol = note.stringIndex >= 3 ? 0.35 : 0.25; // bass slightly louder
+            createPluckedString(ctx, note.freq, duration, when, compressor, vol);
+          }
 
           // Schedule highlight
           const highlightDelay = Math.max(column * secondsPerColumn * 1000, 0);
@@ -254,7 +265,7 @@ export function useTablaturePlayer() {
         timeoutIdsRef.current.push(endId);
 
         setIsPlaying(true);
-        console.info(`[TablaturePlayer] Playing ${parsed.notes.length} notes at ${bpm} BPM (${totalDuration.toFixed(1)}s) with guitar samples`);
+        console.info(`[TablaturePlayer] Playing ${parsed.notes.length} notes at ${bpm} BPM (${totalDuration.toFixed(1)}s) with Karplus-Strong synthesis`);
 
         // Progress animation
         const tick = () => {
