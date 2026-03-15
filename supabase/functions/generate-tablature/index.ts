@@ -28,7 +28,7 @@ const OPEN_CHORD_SHAPES: Record<string, Array<number | null>> = {
   E: [0, 0, 1, 2, 2, 0],
   A: [0, 2, 2, 2, 0, null],
   Bm: [2, 3, 4, 4, 2, null],
-  C#m: [4, 5, 6, 6, 4, null],
+  "C#m": [4, 5, 6, 6, 4, null],
   Gm: [3, 3, 3, 5, 5, 3],
 };
 
