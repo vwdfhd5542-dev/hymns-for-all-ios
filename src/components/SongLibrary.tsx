@@ -4,6 +4,7 @@ import { Song } from "@/data/songs";
 import { Heart } from "lucide-react";
 import { PitchDetector } from "./PitchDetector";
 import { useSongs } from "@/hooks/useSongs";
+import { useLanguage } from "@/hooks/useLanguage";
 
 interface SongLibraryProps {
   onSongSelect: (song: Song) => void;
@@ -18,8 +19,8 @@ function normalize(str: string): string {
   return str
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // remove diacritics
-    .replace(/[.,;:!?'"„""''«»\-–—()[\]{}]/g, "") // remove punctuation
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[.,;:!?'"„""''«»\-–—()[\]{}]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -33,6 +34,7 @@ export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false,
   const [query, setQuery] = useState("");
   const [activeCollection, setActiveCollection] = useState("Toate");
   const { data: songs = [], isLoading } = useSongs();
+  const { t } = useLanguage();
 
   const filtered = useMemo(() => {
     let list = filterFavorites ? songs.filter((s) => isFavorite(s.id)) : songs;
@@ -62,10 +64,10 @@ export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false,
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight">
-                {filterFavorites ? "Favorite" : "Hymns RO"}
+                {filterFavorites ? t("library.favorites") : t("library.title")}
               </h1>
               {!filterFavorites && (
-                <p className="text-xs text-primary font-medium">Cântări Creștine</p>
+                <p className="text-xs text-primary font-medium">{t("library.subtitle")}</p>
               )}
             </div>
           </div>
@@ -82,7 +84,7 @@ export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false,
           <Search size={16} className="text-muted-foreground shrink-0" />
           <input
             type="text"
-            placeholder="Caută după titlu, artist sau versuri..."
+            placeholder={t("library.search")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="bg-transparent text-sm w-full outline-none placeholder:text-muted-foreground"
@@ -97,7 +99,7 @@ export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false,
 
       {!filterFavorites && (
         <div className="px-4 pb-3 flex gap-2 overflow-x-auto no-scrollbar">
-          {COLLECTIONS.map((col) => (
+          {COLLECTIONS.map((col, i) => (
             <button
               key={col}
               onClick={() => setActiveCollection(col)}
@@ -107,7 +109,7 @@ export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false,
                   : "bg-card text-muted-foreground border border-border"
               }`}
             >
-              {col}
+              {i === 0 ? t("library.all") : col}
             </button>
           ))}
         </div>
@@ -124,7 +126,7 @@ export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false,
         {!isLoading && filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <p className="text-sm">
-              {filterFavorites ? "Nu ai cântări favorite încă." : "Nicio cântare găsită."}
+              {filterFavorites ? t("library.noFavorites") : t("library.noResults")}
             </p>
           </div>
         )}
@@ -144,10 +146,10 @@ export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false,
                   </p>
                   <div className="flex gap-2 mt-2.5 flex-wrap">
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-[11px] font-medium text-muted-foreground">
-                      ♪ Acorduri
+                      ♪ {t("library.chords")}
                     </span>
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-[11px] font-medium text-muted-foreground">
-                      ☰ Versuri
+                      ☰ {t("library.lyrics")}
                     </span>
                   </div>
                 </div>

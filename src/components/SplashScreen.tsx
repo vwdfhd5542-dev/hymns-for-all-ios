@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Music } from "lucide-react";
+import { useLanguage } from "@/hooks/useLanguage";
 
 interface SplashScreenProps {
   onFinish: () => void;
@@ -7,6 +8,7 @@ interface SplashScreenProps {
 
 export function SplashScreen({ onFinish }: SplashScreenProps) {
   const [phase, setPhase] = useState<"enter" | "hold" | "exit">("enter");
+  const { t } = useLanguage();
 
   useEffect(() => {
     const enterTimer = setTimeout(() => setPhase("hold"), 100);
@@ -42,7 +44,7 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
             Hymns RO
           </h1>
           <p className="text-sm font-medium text-primary mt-1">
-            Cântări Creștine
+            {t("splash.subtitle")}
           </p>
         </div>
         <div className="mt-6 w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />

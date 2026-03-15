@@ -4,6 +4,7 @@ import { useCollections, useAddCollection, useDeleteCollection, useCollectionSon
 import { useSongs } from "@/hooks/useSongs";
 import { Song } from "@/data/songs";
 import { toast } from "sonner";
+import { useLanguage } from "@/hooks/useLanguage";
 
 interface CollectionsViewProps {
   onSongSelect: (song: Song) => void;
@@ -22,8 +23,8 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
   const { data: songIds = [] } = useCollectionSongs(selectedCol);
   const addSongToCol = useAddSongToCollection();
   const removeSongFromCol = useRemoveSongFromCollection();
+  const { t } = useLanguage();
 
-  // Auto-collections from song.collection field
   const autoCollections = useMemo(() => {
     const map = new Map<string, Song[]>();
     songs.forEach(s => {
@@ -37,7 +38,7 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
   const handleCreate = () => {
     if (!newName.trim()) return;
     addCollection.mutate({ name: newName.trim() }, {
-      onSuccess: () => { setNewName(""); setShowCreate(false); toast.success("Colecție creată!"); },
+      onSuccess: () => { setNewName(""); setShowCreate(false); toast.success(t("collections.created")); },
     });
   };
 
@@ -45,7 +46,6 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
   const collectionSongs = songs.filter(s => songIds.includes(s.id));
   const autoCol = autoCollections.find(c => c.name === selectedAuto);
 
-  // Detail view for auto-collection
   if (selectedAuto && autoCol) {
     return (
       <div className="flex flex-col h-full">
@@ -55,7 +55,7 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
               <ChevronRight size={20} className="rotate-180" />
             </button>
             <h1 className="text-2xl font-bold tracking-tight flex-1">{autoCol.name}</h1>
-            <span className="text-sm text-muted-foreground">{autoCol.songs.length} cântări</span>
+            <span className="text-sm text-muted-foreground">{autoCol.songs.length} {t("collections.songs")}</span>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto pb-24 px-4 space-y-2 pt-2">
@@ -74,7 +74,6 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
     );
   }
 
-  // Detail view for custom collection
   if (selectedCol && selectedCollection) {
     return (
       <div className="flex flex-col h-full">
@@ -95,12 +94,12 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
 
         {showAddSongs && (
           <div className="px-4 pb-3 max-h-60 overflow-y-auto border-b border-border">
-            <p className="text-xs text-muted-foreground mb-2 font-medium">Adaugă cântări:</p>
+            <p className="text-xs text-muted-foreground mb-2 font-medium">{t("collections.addSongs")}</p>
             {songs.filter(s => !songIds.includes(s.id)).map(song => (
               <button
                 key={song.id}
                 onClick={() => addSongToCol.mutate({ collectionId: selectedCol!, songId: song.id }, {
-                  onSuccess: () => toast.success("Adăugat!"),
+                  onSuccess: () => toast.success(t("collections.added")),
                 })}
                 className="w-full text-left py-2 px-3 rounded-lg hover:bg-muted/50 active:bg-muted text-sm flex items-center gap-2"
               >
@@ -114,7 +113,7 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
 
         <div className="flex-1 overflow-y-auto pb-24 px-4 space-y-2 pt-2">
           {collectionSongs.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-10">Nicio cântare în colecție.</p>
+            <p className="text-sm text-muted-foreground text-center py-10">{t("collections.noSongs")}</p>
           )}
           {collectionSongs.map(song => (
             <div key={song.id} className="flex items-center gap-2">
@@ -146,7 +145,7 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
             <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
               <FolderOpen size={20} className="text-primary" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">Colecții</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{t("collections.title")}</h1>
           </div>
           <button onClick={() => setShowCreate(true)} className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
             <Plus size={20} className="text-primary" />
@@ -160,12 +159,12 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
             <input
               value={newName}
               onChange={e => setNewName(e.target.value)}
-              placeholder="Numele colecției"
+              placeholder={t("collections.namePlaceholder")}
               className="flex-1 bg-card border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary"
               autoFocus
             />
             <button onClick={handleCreate} className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold">
-              Creează
+              {t("collections.create")}
             </button>
             <button onClick={() => setShowCreate(false)} className="px-3 py-2.5 bg-card border border-border rounded-xl">
               <X size={16} />
@@ -175,8 +174,7 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
       )}
 
       <div className="flex-1 overflow-y-auto pb-24 px-4 space-y-3">
-        {/* Auto-collections from song data */}
-        <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider pt-2">Colecții de cântări</p>
+        <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider pt-2">{t("collections.songCollections")}</p>
         {autoCollections.map(col => (
           <button
             key={col.name}
@@ -189,22 +187,21 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
               </div>
               <div className="flex-1">
                 <p className="font-bold text-sm">{col.name}</p>
-                <p className="text-[11px] text-muted-foreground">{col.songs.length} cântări</p>
+                <p className="text-[11px] text-muted-foreground">{col.songs.length} {t("collections.songs")}</p>
               </div>
               <ChevronRight size={16} className="text-muted-foreground" />
             </div>
           </button>
         ))}
 
-        {/* Custom collections */}
-        <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider pt-4">Colecții personalizate</p>
+        <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider pt-4">{t("collections.custom")}</p>
         {isLoading && (
           <div className="flex items-center justify-center py-10">
             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         )}
         {!isLoading && collections.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-6">Nicio colecție personalizată. Creează una!</p>
+          <p className="text-sm text-muted-foreground text-center py-6">{t("collections.noCustom")}</p>
         )}
         {collections.map(col => (
           <div key={col.id} className="flex items-center gap-2">
@@ -218,13 +215,13 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
                 </div>
                 <div>
                   <p className="font-bold text-sm">{col.name}</p>
-                  <p className="text-[11px] text-muted-foreground">{col.description || "Colecție personalizată"}</p>
+                  <p className="text-[11px] text-muted-foreground">{col.description || t("collections.customDesc")}</p>
                 </div>
                 <ChevronRight size={16} className="text-muted-foreground ml-auto" />
               </div>
             </button>
             <button
-              onClick={() => deleteCollection.mutate(col.id, { onSuccess: () => toast.success("Șters!") })}
+              onClick={() => deleteCollection.mutate(col.id, { onSuccess: () => toast.success(t("collections.deleted")) })}
               className="w-9 h-9 rounded-lg bg-destructive/15 flex items-center justify-center shrink-0"
             >
               <Trash2 size={14} className="text-destructive" />
