@@ -2,9 +2,10 @@ import { useState } from "react";
 import { chordDiagrams, ChordDiagramData } from "@/data/chordDiagrams";
 import { pianoChords, PianoChordData } from "@/data/pianoChords";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Guitar, Piano, Loader2 } from "lucide-react";
+import { Guitar, Piano, Loader2, Play, Square } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/hooks/useLanguage";
+import { useTablaturePlayer } from "@/hooks/useTablaturePlayer";
 import { toast } from "sonner";
 
 interface ChordDiagramProps {
@@ -188,6 +189,7 @@ function FingerpickingTab({ chord }: { chord: string }) {
   const [tab, setTab] = useState<Record<ChordLevel, string>>({} as any);
   const [level, setLevel] = useState<ChordLevel>("basic");
   const [loading, setLoading] = useState(false);
+  const player = useTablaturePlayer();
 
   const currentTab = tab[level];
 
@@ -229,10 +231,27 @@ function FingerpickingTab({ chord }: { chord: string }) {
       </div>
 
       {currentTab ? (
-        <div className="overflow-x-auto rounded-lg bg-muted/50 p-3">
-          <pre className="font-mono text-[10px] leading-[1.5] text-foreground whitespace-pre">
-            {currentTab}
-          </pre>
+        <div className="space-y-2">
+          <div className="overflow-x-auto rounded-lg bg-muted/50 p-3">
+            <pre className="font-mono text-[10px] leading-[1.5] text-foreground whitespace-pre">
+              {currentTab}
+            </pre>
+          </div>
+          <button
+            onClick={() => player.isPlaying ? player.stop() : player.play(currentTab, 100)}
+            className={`w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
+              player.isPlaying 
+                ? "bg-destructive/15 text-destructive" 
+                : "bg-primary/10 text-primary"
+            }`}
+          >
+            {player.isPlaying ? <><Square size={12} /> {t("tab.stop")}</> : <><Play size={12} /> {t("tab.play")}</>}
+          </button>
+          {player.isPlaying && (
+            <div className="h-1 bg-muted rounded-full overflow-hidden">
+              <div className="h-full bg-primary rounded-full transition-all duration-100" style={{ width: `${player.progress * 100}%` }} />
+            </div>
+          )}
         </div>
       ) : (
         <button

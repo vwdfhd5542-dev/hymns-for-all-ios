@@ -155,7 +155,9 @@ const translations = {
   "tab.fingerpicking": { ro: "Fingerpicking", es: "Fingerpicking", en: "Fingerpicking" },
   "tab.noTab": { ro: "Tablatură nu este disponibilă", es: "Tablatura no disponible", en: "Tablature not available" },
   "tab.generateForChord": { ro: "Generează patern", es: "Generar patrón", en: "Generate pattern" },
-  "tab.viewFull": { ro: "Vezi tablatură completă", es: "Ver tablatura completa", en: "View full tablature" },
+  "tab.play": { ro: "Redare", es: "Reproducir", en: "Play" },
+  "tab.stop": { ro: "Oprește", es: "Detener", en: "Stop" },
+  "tab.tempo": { ro: "Tempo", es: "Tempo", en: "Tempo" },
 } as const;
 
 type TranslationKey = keyof typeof translations;

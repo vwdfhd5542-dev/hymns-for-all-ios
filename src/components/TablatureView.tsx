@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { ChevronLeft, Loader2, Guitar } from "lucide-react";
+import { ChevronLeft, Loader2, Guitar, Play, Square } from "lucide-react";
 import { Song } from "@/data/songs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/useLanguage";
+import { useTablaturePlayer } from "@/hooks/useTablaturePlayer";
 
 type Level = "basic" | "intermediate" | "advanced";
 
@@ -30,6 +31,8 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
   const [mode, setMode] = useState<"chord" | "full">("chord");
   const [tablature, setTablature] = useState<Record<string, Record<string, string>>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [bpm, setBpm] = useState(100);
+  const player = useTablaturePlayer();
 
   const currentTab = tablature[mode]?.[level];
 
@@ -147,10 +150,50 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
 
           {/* Tablature display */}
           {currentTab && (
-            <div className="bg-card rounded-2xl border border-border p-4 overflow-x-auto">
-              <pre className="font-mono text-[11px] leading-[1.5] text-foreground whitespace-pre overflow-x-auto scrollbar-none">
-                {currentTab}
-              </pre>
+            <div className="bg-card rounded-2xl border border-border overflow-hidden mb-4">
+              {/* Player controls */}
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+                <button
+                  onClick={() => player.isPlaying ? player.stop() : player.play(currentTab, bpm)}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+                    player.isPlaying 
+                      ? "bg-destructive text-destructive-foreground" 
+                      : "bg-primary text-primary-foreground"
+                  }`}
+                >
+                  {player.isPlaying ? <Square size={14} /> : <Play size={16} className="ml-0.5" />}
+                </button>
+
+                {/* Progress bar */}
+                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary rounded-full transition-all duration-100"
+                    style={{ width: `${player.progress * 100}%` }}
+                  />
+                </div>
+
+                {/* BPM control */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted-foreground font-medium">{t("tab.tempo")}</span>
+                  <input
+                    type="range"
+                    min={40}
+                    max={200}
+                    step={5}
+                    value={bpm}
+                    onChange={(e) => setBpm(parseInt(e.target.value))}
+                    className="w-16 accent-primary h-1"
+                  />
+                  <span className="text-[10px] font-mono text-foreground w-8">{bpm}</span>
+                </div>
+              </div>
+
+              {/* Tab content */}
+              <div className="p-4 overflow-x-auto">
+                <pre className="font-mono text-[11px] leading-[1.5] text-foreground whitespace-pre overflow-x-auto scrollbar-none">
+                  {currentTab}
+                </pre>
+              </div>
             </div>
           )}
 
