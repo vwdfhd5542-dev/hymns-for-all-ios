@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Song, transposeLine, parseLyricsLine } from "@/data/songs";
-import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type } from "lucide-react";
+import { useUpdateSong } from "@/hooks/useSongs";
+import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Guitar } from "lucide-react";
+import { toast } from "sonner";
 
 interface SongViewProps {
   song: Song;
@@ -9,16 +11,53 @@ interface SongViewProps {
   onToggleFavorite: () => void;
 }
 
+// Parse a line into chord-positioned segments for "chords above" display
+function parseChordsAbove(line: string, transpose: number): { chords: string; lyrics: string } | null {
+  const transposed = transposeLine(line, transpose);
+  const regex = /\[([^\]]+)\]/g;
+  let match;
+  let chordLine = "";
+  let lyricLine = "";
+  let lastIndex = 0;
+  let hasChords = false;
+
+  while ((match = regex.exec(transposed)) !== null) {
+    hasChords = true;
+    const textBefore = transposed.slice(lastIndex, match.index).replace(/\[[^\]]*\]/g, "");
+    // Pad chord line to align with lyrics
+    while (chordLine.length < lyricLine.length + textBefore.length) {
+      chordLine += " ";
+    }
+    chordLine += match[1];
+    lyricLine += textBefore;
+    lastIndex = regex.lastIndex;
+  }
+
+  const remaining = transposed.slice(lastIndex).replace(/\[[^\]]*\]/g, "");
+  lyricLine += remaining;
+
+  if (!hasChords) return null;
+  return { chords: chordLine, lyrics: lyricLine };
+}
+
 export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongViewProps) {
   const [transpose, setTranspose] = useState(0);
   const [fontSize, setFontSize] = useState(16);
   const [autoScroll, setAutoScroll] = useState(false);
   const [scrollSpeed, setScrollSpeed] = useState(1);
   const [showTools, setShowTools] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editLyrics, setEditLyrics] = useState(song.lyrics);
+  const [showComplexChords, setShowComplexChords] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const animRef = useRef<number>();
+  const updateSong = useUpdateSong();
 
   const lines = song.lyrics.split("\n");
+
+  // Get the song key from first chord
+  const keyMatch = song.lyrics.match(/\[([A-G][#b]?)/);
+  const songKey = keyMatch ? keyMatch[1] : "?";
 
   // Auto-scroll
   useEffect(() => {
@@ -26,7 +65,6 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
       if (animRef.current) cancelAnimationFrame(animRef.current);
       return;
     }
-
     let lastTime = performance.now();
     const tick = (now: number) => {
       const delta = now - lastTime;
@@ -37,84 +75,118 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
       animRef.current = requestAnimationFrame(tick);
     };
     animRef.current = requestAnimationFrame(tick);
-
-    return () => {
-      if (animRef.current) cancelAnimationFrame(animRef.current);
-    };
+    return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
   }, [autoScroll, scrollSpeed]);
 
   const handleTranspose = useCallback((dir: number) => {
     setTranspose((prev) => prev + dir);
   }, []);
 
+  const handleSaveEdit = () => {
+    updateSong.mutate(
+      { id: song.id, lyrics: editLyrics },
+      {
+        onSuccess: () => {
+          toast.success("Cântarea a fost actualizată!");
+          song.lyrics = editLyrics;
+          setIsEditing(false);
+        },
+        onError: () => toast.error("Eroare la salvare"),
+      }
+    );
+  };
+
+  // Complex chord suggestions
+  const complexChordMap: Record<string, string[]> = {
+    C: ["Cmaj7", "C7", "Cadd9", "Csus4", "Csus2", "C6"],
+    D: ["Dmaj7", "D7", "Dadd9", "Dsus4", "Dsus2", "D6"],
+    E: ["Emaj7", "E7", "Eadd9", "Esus4", "E6", "E9"],
+    F: ["Fmaj7", "F7", "Fadd9", "Fsus4", "F6", "F9"],
+    G: ["Gmaj7", "G7", "Gadd9", "Gsus4", "Gsus2", "G6"],
+    A: ["Amaj7", "A7", "Aadd9", "Asus4", "Asus2", "A6"],
+    B: ["Bmaj7", "B7", "Badd9", "Bsus4", "B6", "B9"],
+    Am: ["Am7", "Am9", "Amadd9", "Am6", "Am7b5"],
+    Bm: ["Bm7", "Bm9", "Bmadd9", "Bm6"],
+    Dm: ["Dm7", "Dm9", "Dmadd9", "Dm6"],
+    Em: ["Em7", "Em9", "Emadd9", "Em6"],
+  };
+
+  // Extract unique chords from song
+  const uniqueChords = [...new Set(song.lyrics.match(/\[([^\]]+)\]/g)?.map(c => c.slice(1, -1)) || [])];
+
   return (
     <div className="flex flex-col h-full animate-slide-in-right">
       {/* Top bar */}
       <div className="glass fixed top-0 left-0 right-0 z-40 border-b border-border">
-        <div className="flex items-center h-12 px-2 max-w-3xl mx-auto">
+        <div className="flex items-center h-14 px-3 max-w-3xl mx-auto">
           <button onClick={onBack} className="flex items-center gap-0.5 text-primary min-w-[44px] min-h-[44px] justify-center">
             <ChevronLeft size={22} />
-            <span className="text-[15px] font-medium">Înapoi</span>
           </button>
-          <div className="flex-1" />
-          <button
-            onClick={() => setShowTools((v) => !v)}
-            className={`min-w-[44px] min-h-[44px] flex items-center justify-center ${showTools ? "text-primary" : "text-muted-foreground"}`}
-          >
-            <Type size={20} />
-          </button>
-          <button
-            onClick={onToggleFavorite}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center"
-          >
-            <Heart
-              size={20}
-              className={isFavorite ? "text-accent" : "text-muted-foreground"}
-              fill={isFavorite ? "currentColor" : "none"}
-            />
-          </button>
+
+          <div className="flex-1 text-center min-w-0 px-2">
+            <p className="font-bold text-sm truncate">{song.title}</p>
+            <p className="text-[10px] text-muted-foreground truncate">{song.artist} · {songKey}</p>
+          </div>
+
+          <div className="flex items-center">
+            {isEditing ? (
+              <>
+                <button onClick={() => { setIsEditing(false); setEditLyrics(song.lyrics); }}
+                  className="min-w-[40px] min-h-[44px] flex items-center justify-center text-muted-foreground">
+                  <X size={18} />
+                </button>
+                <button onClick={handleSaveEdit}
+                  className="min-w-[40px] min-h-[44px] flex items-center justify-center text-primary">
+                  <Check size={18} />
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => { setIsEditing(true); setEditLyrics(song.lyrics); }}
+                  className="min-w-[40px] min-h-[44px] flex items-center justify-center text-muted-foreground">
+                  <Edit3 size={17} />
+                </button>
+                <button onClick={() => setShowTools((v) => !v)}
+                  className={`min-w-[40px] min-h-[44px] flex items-center justify-center ${showTools ? "text-primary" : "text-muted-foreground"}`}>
+                  <Type size={18} />
+                </button>
+                <button onClick={onToggleFavorite}
+                  className="min-w-[40px] min-h-[44px] flex items-center justify-center">
+                  <Heart size={18} className={isFavorite ? "text-accent" : "text-muted-foreground"} fill={isFavorite ? "currentColor" : "none"} />
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Toolbar */}
-        {showTools && (
+        {showTools && !isEditing && (
           <div className="border-t border-border px-4 py-3 space-y-3 animate-fade-in">
             {/* Transpose */}
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground font-medium">Transpune</span>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => handleTranspose(-1)}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-card rounded-lg"
-                >
-                  <Minus size={18} />
+              <div className="flex items-center gap-2">
+                <button onClick={() => handleTranspose(-1)} className="w-9 h-9 flex items-center justify-center bg-card rounded-lg border border-border">
+                  <Minus size={14} />
                 </button>
-                <span className="text-sm font-mono w-8 text-center font-semibold">
+                <span className="text-sm font-mono w-10 text-center font-bold">
                   {transpose > 0 ? `+${transpose}` : transpose}
                 </span>
-                <button
-                  onClick={() => handleTranspose(1)}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-card rounded-lg"
-                >
-                  <Plus size={18} />
+                <button onClick={() => handleTranspose(1)} className="w-9 h-9 flex items-center justify-center bg-card rounded-lg border border-border">
+                  <Plus size={14} />
                 </button>
               </div>
             </div>
 
             {/* Font size */}
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Font</span>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setFontSize((s) => Math.max(12, s - 2))}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-card rounded-lg text-xs font-semibold"
-                >
+              <span className="text-xs text-muted-foreground font-medium">Mărime text</span>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setFontSize((s) => Math.max(12, s - 2))} className="w-9 h-9 flex items-center justify-center bg-card rounded-lg border border-border text-xs font-bold">
                   A-
                 </button>
-                <span className="text-sm font-mono w-8 text-center">{fontSize}</span>
-                <button
-                  onClick={() => setFontSize((s) => Math.min(28, s + 2))}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-card rounded-lg text-sm font-semibold"
-                >
+                <span className="text-sm font-mono w-10 text-center">{fontSize}px</span>
+                <button onClick={() => setFontSize((s) => Math.min(28, s + 2))} className="w-9 h-9 flex items-center justify-center bg-card rounded-lg border border-border text-sm font-bold">
                   A+
                 </button>
               </div>
@@ -123,73 +195,129 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
             {/* Auto-scroll */}
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground font-medium">Auto-scroll</span>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setAutoScroll((v) => !v)}
-                  className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg ${
-                    autoScroll ? "bg-primary text-primary-foreground" : "bg-card"
-                  }`}
-                >
-                  {autoScroll ? <Pause size={16} /> : <Play size={16} />}
+              <div className="flex items-center gap-2">
+                <button onClick={() => setAutoScroll((v) => !v)}
+                  className={`w-9 h-9 flex items-center justify-center rounded-lg border ${autoScroll ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}>
+                  {autoScroll ? <Pause size={14} /> : <Play size={14} />}
                 </button>
                 {autoScroll && (
-                  <input
-                    type="range"
-                    min={0.3}
-                    max={3}
-                    step={0.1}
-                    value={scrollSpeed}
+                  <input type="range" min={0.3} max={3} step={0.1} value={scrollSpeed}
                     onChange={(e) => setScrollSpeed(parseFloat(e.target.value))}
-                    className="w-24 accent-primary"
-                  />
+                    className="w-20 accent-primary" />
                 )}
               </div>
+            </div>
+
+            {/* Complex chords toggle */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground font-medium">Acorduri complexe</span>
+              <button onClick={() => setShowComplexChords((v) => !v)}
+                className={`w-9 h-9 flex items-center justify-center rounded-lg border ${showComplexChords ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}>
+                <Guitar size={14} />
+              </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Lyrics */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto pt-16 pb-8 px-4"
-        style={{ paddingTop: showTools ? "12rem" : "4rem" }}
-      >
+      {/* Content */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto pb-8 px-4"
+        style={{ paddingTop: showTools && !isEditing ? "16rem" : "4.5rem" }}>
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-xl font-bold mb-1">{song.title}</h2>
-          <p className="text-xs text-muted-foreground mb-6">
-            {song.artist} · {song.collection}
+          {/* Song header */}
+          <div className="mb-6">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="flex-1">
+                <h2 className="text-xl font-bold">{song.title}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {song.artist} · {song.collection}
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                <span className="text-primary font-bold text-sm">{songKey}</span>
+              </div>
+            </div>
+
             {transpose !== 0 && (
-              <span className="ml-2 text-primary font-medium">
-                ({transpose > 0 ? "+" : ""}{transpose})
-              </span>
+              <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-medium px-3 py-1 rounded-full">
+                Transpus: {transpose > 0 ? "+" : ""}{transpose} semitonuri
+              </div>
             )}
-          </p>
-
-          <div className="font-mono-lyrics space-y-0.5" style={{ fontSize: `${fontSize}px`, lineHeight: 1.8 }}>
-            {lines.map((line, i) => {
-              const transposed = transposeLine(line, transpose);
-              const parts = parseLyricsLine(transposed);
-
-              if (transposed.trim() === "") {
-                return <div key={i} className="h-4" />;
-              }
-
-              return (
-                <div key={i} className="whitespace-pre-wrap break-words">
-                  {parts.map((part, j) =>
-                    part.type === "chord" ? (
-                      <span key={j} className="text-chord font-bold">
-                        {part.value}
-                      </span>
-                    ) : (
-                      <span key={j}>{part.value}</span>
-                    )
-                  )}
-                </div>
-              );
-            })}
           </div>
+
+          {/* Complex chords panel */}
+          {showComplexChords && (
+            <div className="mb-6 bg-card border border-border rounded-xl p-4 animate-fade-in">
+              <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Variante acorduri</p>
+              <div className="space-y-2.5">
+                {uniqueChords.map((chord) => {
+                  const base = chord.replace(/\d.*$/, "").replace(/sus.*$/, "").replace(/add.*$/, "").replace(/maj.*$/, "");
+                  const variants = complexChordMap[base] || complexChordMap[chord] || [];
+                  if (variants.length === 0) return null;
+                  return (
+                    <div key={chord} className="flex items-center gap-2 flex-wrap">
+                      <span className="text-chord font-bold text-sm min-w-[3rem]">{chord}</span>
+                      <span className="text-muted-foreground text-[10px]">→</span>
+                      {variants.map((v) => (
+                        <span key={v} className="text-[11px] bg-muted px-2 py-0.5 rounded-md font-mono text-muted-foreground">
+                          {v}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Edit mode */}
+          {isEditing ? (
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">
+                Editează versurile. Folosește [Acord] pentru acorduri.
+              </p>
+              <textarea
+                value={editLyrics}
+                onChange={(e) => setEditLyrics(e.target.value)}
+                rows={25}
+                className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-primary transition-colors resize-none"
+                style={{ fontSize: `${Math.max(13, fontSize - 2)}px`, lineHeight: 1.8 }}
+              />
+            </div>
+          ) : (
+            /* Lyrics with chords ABOVE */
+            <div className="font-mono-lyrics" style={{ fontSize: `${fontSize}px` }}>
+              {lines.map((line, i) => {
+                if (line.trim() === "") {
+                  return <div key={i} className="h-5" />;
+                }
+
+                const result = parseChordsAbove(line, transpose);
+
+                if (!result) {
+                  // Line with no chords — just text
+                  const transposed = transposeLine(line, transpose);
+                  const cleanText = transposed.replace(/\[[^\]]*\]/g, "");
+                  return (
+                    <div key={i} className="leading-relaxed">
+                      <span>{cleanText}</span>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={i} className="mb-1">
+                    <div className="text-chord font-bold whitespace-pre" style={{ fontSize: `${Math.max(11, fontSize - 2)}px`, lineHeight: 1.4 }}>
+                      {result.chords}
+                    </div>
+                    <div className="whitespace-pre-wrap break-words leading-relaxed">
+                      {result.lyrics}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

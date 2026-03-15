@@ -3,6 +3,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { SongLibrary } from "@/components/SongLibrary";
 import { SongView } from "@/components/SongView";
 import { SettingsView } from "@/components/SettingsView";
+import { AddSongForm } from "@/components/AddSongForm";
 import { useFavorites } from "@/hooks/useFavorites";
 import { Song } from "@/data/songs";
 
@@ -11,7 +12,16 @@ type Tab = "songs" | "favorites" | "settings";
 const Index = () => {
   const [tab, setTab] = useState<Tab>("songs");
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
+  const [showAddSong, setShowAddSong] = useState(false);
   const { toggleFavorite, isFavorite } = useFavorites();
+
+  if (showAddSong) {
+    return (
+      <div className="h-[100dvh] bg-background">
+        <AddSongForm onClose={() => setShowAddSong(false)} />
+      </div>
+    );
+  }
 
   if (selectedSong) {
     return (
@@ -29,7 +39,11 @@ const Index = () => {
   return (
     <div className="h-[100dvh] bg-background">
       {tab === "songs" && (
-        <SongLibrary onSongSelect={setSelectedSong} isFavorite={isFavorite} />
+        <SongLibrary
+          onSongSelect={setSelectedSong}
+          isFavorite={isFavorite}
+          onAddSong={() => setShowAddSong(true)}
+        />
       )}
       {tab === "favorites" && (
         <SongLibrary
