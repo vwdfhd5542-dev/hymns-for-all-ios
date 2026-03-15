@@ -162,10 +162,10 @@ function renderBeatwiseChordLine(chords: string[]): string {
   });
 
   return LINE_LABELS.map((label, stringIndex) => {
-    const segments = beatShapes.map((shape) => {
+    const segments = beatShapes.map((shape, beatIndex) => {
       const bassString = pickBassString(shape);
       const activeStrings = [bassString, 2, 1, 0];
-      const activeIndex = activeStrings[Math.min(3, beatShapes.indexOf(shape))];
+      const activeIndex = activeStrings[beatIndex] ?? 0;
       return beatSegment(activeIndex === stringIndex ? shape[stringIndex] : null);
     });
 
