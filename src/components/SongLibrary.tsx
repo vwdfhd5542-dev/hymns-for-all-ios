@@ -30,13 +30,13 @@ export function SongLibrary({ onSongSelect, isFavorite, filterFavorites = false,
       list = list.filter((s) => s.collection === activeCollection);
     }
     if (query.trim()) {
-      const q = query.toLowerCase();
+      const q = normalize(query);
       list = list.filter(
         (s) =>
-          s.title.toLowerCase().includes(q) ||
-          s.artist.toLowerCase().includes(q) ||
-          s.collection.toLowerCase().includes(q) ||
-          s.lyrics.toLowerCase().includes(q)
+          normalize(s.title).includes(q) ||
+          normalize(s.artist).includes(q) ||
+          normalize(s.collection).includes(q) ||
+          normalize(s.lyrics).includes(q)
       );
     }
     return list;

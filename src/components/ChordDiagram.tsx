@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { chordDiagrams, ChordDiagramData } from "@/data/chordDiagrams";
+import { pianoChords, PianoChordData } from "@/data/pianoChords";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Guitar, Piano } from "lucide-react";
 
 interface ChordDiagramProps {
   chord: string | null;
@@ -11,11 +14,11 @@ function GuitarDiagram({ data }: { data: ChordDiagramData }) {
   const numFrets = 5;
   const numStrings = 6;
   const w = 160;
-  const h = 180;
-  const padTop = 36;
+  const h = 200;
+  const padTop = 38;
   const padLeft = 28;
   const padRight = 12;
-  const fretH = (h - padTop - 20) / numFrets;
+  const fretH = (h - padTop - 30) / numFrets;
   const strW = (w - padLeft - padRight) / (numStrings - 1);
 
   const minFret = Math.min(...data.frets.filter(f => f > 0));
@@ -24,7 +27,7 @@ function GuitarDiagram({ data }: { data: ChordDiagramData }) {
   const isOpenPosition = baseFret === 1;
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full max-w-[200px] mx-auto" aria-label={`Chord diagram for ${data.name}`}>
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full max-w-[220px] mx-auto" aria-label={`Chord diagram for ${data.name}`}>
       {/* Nut or fret number */}
       {isOpenPosition ? (
         <rect x={padLeft - 2} y={padTop - 3} width={strW * (numStrings - 1) + 4} height={5}
@@ -60,13 +63,19 @@ function GuitarDiagram({ data }: { data: ChordDiagramData }) {
         const x1 = padLeft + barre.from * strW;
         const x2 = padLeft + barre.to * strW;
         return (
-          <rect key={`barre-${bi}`}
-            x={x1 - 4} y={y - 6} width={x2 - x1 + 8} height={12}
-            rx={6} className="fill-primary" opacity={0.9} />
+          <g key={`barre-${bi}`}>
+            <rect
+              x={x1 - 4} y={y - 7} width={x2 - x1 + 8} height={14}
+              rx={7} className="fill-primary" opacity={0.9} />
+            <text x={(x1 + x2) / 2} y={y + 4}
+              className="fill-primary-foreground text-[9px] font-bold" textAnchor="middle">
+              {data.fingers[barre.from] || 1}
+            </text>
+          </g>
         );
       })}
 
-      {/* Finger dots and mute/open markers */}
+      {/* Finger dots with numbers */}
       {data.frets.map((fret, i) => {
         const x = padLeft + i * strW;
         if (fret === -1) {
@@ -90,15 +99,23 @@ function GuitarDiagram({ data }: { data: ChordDiagramData }) {
           fret === b.fret && i >= b.from && i <= b.to
         );
         if (hasBarre) return null;
+        const finger = data.fingers[i];
         return (
-          <circle key={`d-${i}`} cx={x} cy={y} r={7}
-            className="fill-primary" />
+          <g key={`d-${i}`}>
+            <circle cx={x} cy={y} r={8} className="fill-primary" />
+            {finger > 0 && (
+              <text x={x} y={y + 3.5}
+                className="fill-primary-foreground text-[9px] font-bold" textAnchor="middle">
+                {finger}
+              </text>
+            )}
+          </g>
         );
       })}
 
       {/* String labels */}
       {["E", "A", "D", "G", "B", "e"].map((s, i) => (
-        <text key={`lbl-${i}`} x={padLeft + i * strW} y={h - 2}
+        <text key={`lbl-${i}`} x={padLeft + i * strW} y={h - 6}
           className="fill-muted-foreground text-[9px]" textAnchor="middle">
           {s}
         </text>
@@ -107,27 +124,128 @@ function GuitarDiagram({ data }: { data: ChordDiagramData }) {
   );
 }
 
+function PianoDiagram({ data }: { data: PianoChordData }) {
+  const whiteW = 28;
+  const whiteH = 90;
+  const blackW = 18;
+  const blackH = 56;
+  const whiteKeys = ["C", "D", "E", "F", "G", "A", "B"];
+  const blackKeys: Record<string, number> = { "C#": 0, "D#": 1, "F#": 3, "G#": 4, "A#": 5 };
+  const totalW = whiteW * 7;
+  const padTop = 10;
+
+  const noteSet = new Set(data.notes);
+
+  return (
+    <svg viewBox={`0 0 ${totalW + 4} ${whiteH + padTop + 20}`} className="w-full max-w-[220px] mx-auto">
+      {/* White keys */}
+      {whiteKeys.map((key, i) => {
+        const x = 2 + i * whiteW;
+        const isActive = noteSet.has(key);
+        return (
+          <g key={`w-${key}`}>
+            <rect x={x} y={padTop} width={whiteW - 2} height={whiteH}
+              rx={3}
+              className={isActive ? "fill-primary stroke-primary" : "fill-background stroke-border"}
+              strokeWidth={1} />
+            {isActive && (
+              <text x={x + (whiteW - 2) / 2} y={padTop + whiteH - 10}
+                className="fill-primary-foreground text-[10px] font-bold" textAnchor="middle">
+                {key}
+              </text>
+            )}
+          </g>
+        );
+      })}
+
+      {/* Black keys */}
+      {Object.entries(blackKeys).map(([key, idx]) => {
+        const x = 2 + (idx + 1) * whiteW - blackW / 2;
+        const isActive = noteSet.has(key);
+        return (
+          <g key={`b-${key}`}>
+            <rect x={x} y={padTop} width={blackW} height={blackH}
+              rx={2}
+              className={isActive ? "fill-primary" : "fill-foreground"}
+              strokeWidth={0} />
+            {isActive && (
+              <text x={x + blackW / 2} y={padTop + blackH - 8}
+                className="fill-primary-foreground text-[8px] font-bold" textAnchor="middle">
+                {key}
+              </text>
+            )}
+          </g>
+        );
+      })}
+
+      {/* Chord name */}
+      <text x={totalW / 2 + 2} y={whiteH + padTop + 14}
+        className="fill-muted-foreground text-[10px]" textAnchor="middle">
+        {data.notes.join(" – ")}
+      </text>
+    </svg>
+  );
+}
+
 export function ChordDiagramDialog({ chord, open, onClose }: ChordDiagramProps) {
+  const [view, setView] = useState<"guitar" | "piano">("guitar");
+
   if (!chord) return null;
 
-  const data = chordDiagrams[chord];
+  const guitarData = chordDiagrams[chord];
+  const pianoData = pianoChords[chord];
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-[260px] rounded-2xl p-5">
+      <DialogContent className="max-w-[280px] rounded-2xl p-5">
         <DialogHeader>
           <DialogTitle className="text-center text-2xl font-bold text-primary">
             {chord}
           </DialogTitle>
         </DialogHeader>
-        {data ? (
-          <GuitarDiagram data={data} />
+
+        {/* Toggle guitar/piano */}
+        <div className="flex justify-center gap-1 bg-muted rounded-lg p-1">
+          <button
+            onClick={() => setView("guitar")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              view === "guitar" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+            }`}
+          >
+            <Guitar size={14} />
+            Chitară
+          </button>
+          <button
+            onClick={() => setView("piano")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              view === "piano" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+            }`}
+          >
+            <Piano size={14} />
+            Pian
+          </button>
+        </div>
+
+        {view === "guitar" ? (
+          guitarData ? (
+            <GuitarDiagram data={guitarData} />
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-sm text-muted-foreground">
+                Diagrama nu este disponibilă pentru acest acord.
+              </p>
+            </div>
+          )
         ) : (
-          <div className="text-center py-6">
-            <p className="text-sm text-muted-foreground">
-              Diagrama nu este disponibilă pentru acest acord.
-            </p>
-          </div>
+          pianoData ? (
+            <PianoDiagram data={pianoData} />
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-sm text-muted-foreground">
+                Diagrama de pian nu este disponibilă.
+              </p>
+            </div>
+          )
         )}
       </DialogContent>
     </Dialog>
