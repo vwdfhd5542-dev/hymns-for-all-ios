@@ -31,6 +31,8 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
   const [mode, setMode] = useState<"chord" | "full">("chord");
   const [tablature, setTablature] = useState<Record<string, Record<string, string>>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [bpm, setBpm] = useState(100);
+  const player = useTablaturePlayer();
 
   const currentTab = tablature[mode]?.[level];
 
