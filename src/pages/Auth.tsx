@@ -2,11 +2,13 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
-import { Music, Mail, Eye, EyeOff } from "lucide-react";
+import { Music, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useLanguage } from "@/hooks/useLanguage";
 
+type View = "login" | "register" | "forgot" | "reset";
+
 export default function Auth() {
-  const [isLogin, setIsLogin] = useState(true);
+  const [view, setView] = useState<View>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -14,27 +16,66 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const { t } = useLanguage();
 
+  // Check if we're on the reset-password flow (from email link)
+  const hashParams = new URLSearchParams(window.location.hash.substring(1));
+  const isRecovery = hashParams.get("type") === "recovery";
+  const currentView = isRecovery ? "reset" : view;
+
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
     setLoading(true);
 
     try {
-      if (isLogin) {
+      if (currentView === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         if (!rememberMe) {
-          // Session will expire when browser closes
           sessionStorage.setItem("hymnsro-no-persist", "true");
         }
         toast.success("¡Bienvenido!");
-      } else {
+      } else if (currentView === "register") {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         toast.success("¡Cuenta creada! Ya puedes usar la app.");
       }
     } catch (err: any) {
       toast.error(err.message || "Error de autenticación");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success("Se envió un enlace de recuperación a tu email.");
+    } catch (err: any) {
+      toast.error(err.message || "Error al enviar el enlace");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password.trim() || password.length < 6) return;
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      toast.success("Contraseña actualizada correctamente.");
+      // Clear hash and redirect
+      window.location.hash = "";
+      setView("login");
+    } catch (err: any) {
+      toast.error(err.message || "Error al actualizar contraseña");
     } finally {
       setLoading(false);
     }
@@ -54,6 +95,73 @@ export default function Auth() {
     if (error) toast.error("Error al iniciar con Apple");
   };
 
+  // Forgot password view
+  if (currentView === "forgot") {
+    return (
+      <div className="h-[100dvh] bg-background flex flex-col items-center justify-center px-6">
+        <div className="w-full max-w-sm space-y-6">
+          <button onClick={() => setView("login")} className="flex items-center gap-1 text-sm text-primary font-medium">
+            <ArrowLeft size={16} /> Volver
+          </button>
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl font-bold tracking-tight">Recuperar contraseña</h1>
+            <p className="text-sm text-muted-foreground">Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña.</p>
+          </div>
+          <form onSubmit={handleForgotPassword} className="space-y-3">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              required
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-primary transition-colors"
+            />
+            <button type="submit" disabled={loading}
+              className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50 active:scale-[0.98] transition-all">
+              {loading ? "Enviando..." : "Enviar enlace"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Reset password view (from email link)
+  if (currentView === "reset") {
+    return (
+      <div className="h-[100dvh] bg-background flex flex-col items-center justify-center px-6">
+        <div className="w-full max-w-sm space-y-6">
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl font-bold tracking-tight">Nueva contraseña</h1>
+            <p className="text-sm text-muted-foreground">Ingresa tu nueva contraseña.</p>
+          </div>
+          <form onSubmit={handleResetPassword} className="space-y-3">
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Nueva contraseña (mín. 6 caracteres)"
+                required
+                minLength={6}
+                className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-primary transition-colors pr-12"
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <button type="submit" disabled={loading}
+              className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50 active:scale-[0.98] transition-all">
+              {loading ? "Actualizando..." : "Actualizar contraseña"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Login / Register view
   return (
     <div className="h-[100dvh] bg-background flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm space-y-8">
@@ -64,7 +172,7 @@ export default function Auth() {
           </div>
           <h1 className="text-2xl font-bold tracking-tight">HymnsRO</h1>
           <p className="text-sm text-muted-foreground">
-            {isLogin ? "Inicia sesión para continuar" : "Crea tu cuenta"}
+            {currentView === "login" ? "Inicia sesión para continuar" : "Crea tu cuenta"}
           </p>
         </div>
 
@@ -130,16 +238,21 @@ export default function Auth() {
             </button>
           </div>
 
-          {isLogin && (
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded border-border accent-primary"
-              />
-              <span className="text-sm text-muted-foreground">Recordarme</span>
-            </label>
+          {currentView === "login" && (
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-border accent-primary"
+                />
+                <span className="text-sm text-muted-foreground">Recordarme</span>
+              </label>
+              <button type="button" onClick={() => setView("forgot")} className="text-xs text-primary font-medium">
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
           )}
 
           <button
@@ -147,15 +260,15 @@ export default function Auth() {
             disabled={loading}
             className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50 active:scale-[0.98] transition-all"
           >
-            {loading ? "..." : isLogin ? "Iniciar sesión" : "Crear cuenta"}
+            {loading ? "..." : currentView === "login" ? "Iniciar sesión" : "Crear cuenta"}
           </button>
         </form>
 
         {/* Toggle */}
         <p className="text-center text-sm text-muted-foreground">
-          {isLogin ? "¿No tienes cuenta? " : "¿Ya tienes cuenta? "}
-          <button onClick={() => setIsLogin(!isLogin)} className="text-primary font-semibold">
-            {isLogin ? "Regístrate" : "Inicia sesión"}
+          {currentView === "login" ? "¿No tienes cuenta? " : "¿Ya tienes cuenta? "}
+          <button onClick={() => setView(currentView === "login" ? "register" : "login")} className="text-primary font-semibold">
+            {currentView === "login" ? "Regístrate" : "Inicia sesión"}
           </button>
         </p>
       </div>
