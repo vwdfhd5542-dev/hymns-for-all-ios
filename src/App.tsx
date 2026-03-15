@@ -24,8 +24,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+      <Route path="/reset-password" element={<Auth />} />
       <Route path="/" element={user ? <Index /> : <Navigate to="/auth" replace />} />
-      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
