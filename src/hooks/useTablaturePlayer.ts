@@ -15,7 +15,7 @@ function fretToFreq(stringIndex: number, fret: number): number {
 }
 
 interface TabNote {
-  time: number; // in seconds
+  time: number;
   freq: number;
   duration: number;
 }
@@ -23,56 +23,72 @@ interface TabNote {
 function parseTablature(tab: string): TabNote[] {
   const lines = tab.split("\n");
   const notes: TabNote[] = [];
+  const stringOrder = ["e", "B", "G", "D", "A", "E"];
 
-  // Find groups of 6 consecutive tab lines (e, B, G, D, A, E)
-  const stringLabels = ["e", "B", "G", "D", "A", "E"];
+  // Collect all tab line groups (6 consecutive string lines)
   let i = 0;
+  let groupTimeOffset = 0;
 
   while (i < lines.length) {
-    // Try to find a group of 6 tab lines
-    const group: string[] = [];
+    const group: { label: string; content: string }[] = [];
     let j = i;
 
     while (j < lines.length && group.length < 6) {
       const line = lines[j].trim();
-      // Match tab lines like: e|---0---1---| or E|---3---|
-      const tabMatch = line.match(/^[eBGDAe]\|(.+)\|?\s*$/);
-      if (tabMatch) {
-        group.push(tabMatch[1]);
+      // Match: e|...|  or  E|...|  — flexible, supports multi-measure
+      const m = line.match(/^([eBGDAE])\|(.+)/);
+      if (m) {
+        group.push({ label: m[1], content: m[2] });
         j++;
       } else if (group.length > 0) {
-        break; // End of this group
+        break;
       } else {
         j++;
       }
     }
 
     if (group.length === 6) {
-      // Parse this group of 6 strings
-      const maxLen = Math.max(...group.map(g => g.length));
-      const tempo = 0.15; // seconds per character position
+      // Map each line to its string index (0=e, 1=B, 2=G, 3=D, 4=A, 5=E)
+      const mapped = group.map(g => {
+        const idx = stringOrder.indexOf(g.label === "E" ? "E" : g.label);
+        // Handle "E" — could be high e or low E based on position
+        return { content: g.content, label: g.label };
+      });
+
+      // Determine string index by position in the group (top=e, bottom=E)
+      const maxLen = Math.max(...mapped.map(m => m.content.length));
+      const tempo = 0.15; // seconds per column
 
       for (let col = 0; col < maxLen; col++) {
         for (let str = 0; str < 6; str++) {
-          const char = group[str][col];
-          if (char && /\d/.test(char)) {
-            // Check if next char is also a digit (for frets >= 10)
-            let fretStr = char;
-            if (col + 1 < group[str].length && /\d/.test(group[str][col + 1])) {
-              fretStr += group[str][col + 1];
-            }
-            const fret = parseInt(fretStr);
-            if (!isNaN(fret) && fret < 25) {
-              notes.push({
-                time: col * tempo,
-                freq: fretToFreq(str, fret),
-                duration: 0.4,
-              });
-            }
+          const ch = mapped[str].content[col];
+          if (!ch || !/\d/.test(ch)) continue;
+
+          // Check for two-digit fret numbers
+          let fretStr = ch;
+          const nextCh = mapped[str].content[col + 1];
+          if (nextCh && /\d/.test(nextCh)) {
+            fretStr += nextCh;
           }
+          
+          // Skip if this is the second digit of a two-digit number we already processed
+          if (col > 0) {
+            const prevCh = mapped[str].content[col - 1];
+            if (prevCh && /\d/.test(prevCh)) continue;
+          }
+
+          const fret = parseInt(fretStr);
+          if (isNaN(fret) || fret >= 25) continue;
+
+          notes.push({
+            time: groupTimeOffset + col * tempo,
+            freq: fretToFreq(str, fret),
+            duration: 0.5,
+          });
         }
       }
 
+      groupTimeOffset += maxLen * tempo + 0.1; // gap between groups
       i = j;
     } else {
       i = j > i ? j : i + 1;
@@ -82,14 +98,9 @@ function parseTablature(tab: string): TabNote[] {
   // Sort by time
   notes.sort((a, b) => a.time - b.time);
 
-  // Remove duplicates at same time (from double-digit fret parsing)
-  const filtered: TabNote[] = [];
-  for (const note of notes) {
-    const dup = filtered.find(n => Math.abs(n.time - note.time) < 0.01 && Math.abs(n.freq - note.freq) < 1);
-    if (!dup) filtered.push(note);
-  }
+  console.log(`[TablaturePlayer] Parsed ${notes.length} notes, duration: ${notes.length > 0 ? (notes[notes.length - 1].time + 0.5).toFixed(1) : 0}s`);
 
-  return filtered;
+  return notes;
 }
 
 function createPluckSound(
@@ -99,37 +110,36 @@ function createPluckSound(
   duration: number,
   volume: number = 0.3
 ) {
-  const osc1 = ctx.createOscillator();
+  // Use a more reliable approach: create gain envelope properly
+  const osc = ctx.createOscillator();
   const osc2 = ctx.createOscillator();
   const gainNode = ctx.createGain();
   const filter = ctx.createBiquadFilter();
 
-  // Triangle + sine for guitar-like timbre
-  osc1.type = "triangle";
-  osc1.frequency.setValueAtTime(freq, startTime);
+  osc.type = "triangle";
+  osc.frequency.value = freq;
   osc2.type = "sine";
-  osc2.frequency.setValueAtTime(freq * 2, startTime); // harmonic
+  osc2.frequency.value = freq * 2;
 
-  // Low-pass filter for warmth
   filter.type = "lowpass";
-  filter.frequency.setValueAtTime(freq * 4, startTime);
-  filter.frequency.exponentialRampToValueAtTime(freq * 1.5, startTime + duration * 0.5);
-  filter.Q.setValueAtTime(1, startTime);
+  filter.frequency.value = Math.min(freq * 4, 8000);
+  filter.Q.value = 1;
 
-  // Pluck envelope: fast attack, exponential decay
-  gainNode.gain.setValueAtTime(0, startTime);
-  gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.005);
+  // Envelope
+  gainNode.gain.setValueAtTime(0.001, startTime);
+  gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.008);
+  gainNode.gain.setValueAtTime(volume, startTime + 0.01);
   gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
 
-  osc1.connect(filter);
+  osc.connect(filter);
   osc2.connect(filter);
   filter.connect(gainNode);
   gainNode.connect(ctx.destination);
 
-  osc1.start(startTime);
-  osc1.stop(startTime + duration);
+  osc.start(startTime);
+  osc.stop(startTime + duration + 0.05);
   osc2.start(startTime);
-  osc2.stop(startTime + duration);
+  osc2.stop(startTime + duration + 0.05);
 }
 
 export function useTablaturePlayer() {
@@ -138,11 +148,11 @@ export function useTablaturePlayer() {
   const ctxRef = useRef<AudioContext | null>(null);
   const timerRef = useRef<number>();
   const startTimeRef = useRef(0);
-  const durationRef = useRef(0);
+  const totalDurationRef = useRef(0);
 
   const stop = useCallback(() => {
     if (ctxRef.current) {
-      ctxRef.current.close().catch(() => {});
+      try { ctxRef.current.close(); } catch {}
       ctxRef.current = null;
     }
     if (timerRef.current) {
@@ -153,42 +163,57 @@ export function useTablaturePlayer() {
     setProgress(0);
   }, []);
 
-  const play = useCallback((tablature: string, bpm: number = 120) => {
+  const play = useCallback(async (tablature: string, bpm: number = 120) => {
     stop();
 
     const notes = parseTablature(tablature);
-    if (notes.length === 0) return;
+    if (notes.length === 0) {
+      console.warn("[TablaturePlayer] No notes parsed from tablature");
+      return;
+    }
 
-    const ctx = new AudioContext();
+    // Create AudioContext — on iOS this requires user gesture (which we have from button click)
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     ctxRef.current = ctx;
 
-    const totalDuration = Math.max(...notes.map(n => n.time + n.duration)) + 0.5;
-    durationRef.current = totalDuration;
+    // CRITICAL: Resume AudioContext (required on iOS Safari)
+    if (ctx.state === "suspended") {
+      await ctx.resume();
+    }
 
-    // Scale tempo based on BPM
+    console.log(`[TablaturePlayer] AudioContext state: ${ctx.state}, playing ${notes.length} notes at ${bpm} BPM`);
+
     const tempoScale = 120 / bpm;
+    const totalDuration = Math.max(...notes.map(n => n.time + n.duration)) * tempoScale + 0.5;
+    totalDurationRef.current = totalDuration;
 
-    // Schedule all notes
-    const now = ctx.currentTime + 0.1;
+    const now = ctx.currentTime + 0.05;
     startTimeRef.current = now;
 
+    // Schedule all notes
     for (const note of notes) {
-      createPluckSound(ctx, note.freq, now + note.time * tempoScale, note.duration * tempoScale, 0.25);
+      createPluckSound(
+        ctx,
+        note.freq,
+        now + note.time * tempoScale,
+        Math.min(note.duration * tempoScale, 1.5),
+        0.2
+      );
     }
 
     setIsPlaying(true);
 
-    // Update progress
+    // Progress animation
     const updateProgress = () => {
       if (!ctxRef.current) return;
       const elapsed = ctxRef.current.currentTime - startTimeRef.current;
-      const scaledDuration = totalDuration * tempoScale;
-      const pct = Math.min(elapsed / scaledDuration, 1);
+      const pct = Math.min(elapsed / totalDuration, 1);
       setProgress(pct);
 
       if (pct >= 1) {
         setIsPlaying(false);
         setProgress(0);
+        ctxRef.current = null;
         return;
       }
       timerRef.current = requestAnimationFrame(updateProgress);
