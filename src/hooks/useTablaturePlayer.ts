@@ -129,7 +129,7 @@ export function transposeParsedTab(tab: string, semitones: number): string {
   }).join("\n");
 }
 
-// Karplus-Strong plucked string synthesis - sounds like a real guitar
+// Enhanced Karplus-Strong with body resonance
 function createPluckedString(
   ctx: AudioContext,
   freq: number,
@@ -143,25 +143,35 @@ function createPluckedString(
   const buffer = ctx.createBuffer(1, totalSamples, sampleRate);
   const data = buffer.getChannelData(0);
 
-  // Karplus-Strong
   const period = Math.round(sampleRate / freq);
   if (period < 2) return;
 
-  // Initialize with noise burst
+  // Initialize with shaped noise burst (not pure white noise)
+  // Mix of noise + brief sine to give a more tonal pluck
   for (let i = 0; i < period; i++) {
-    data[i] = (Math.random() * 2 - 1) * 0.8;
+    const noise = (Math.random() * 2 - 1);
+    const sine = Math.sin(2 * Math.PI * i / period);
+    // Blend: 70% noise, 30% sine for tonal character
+    data[i] = (noise * 0.7 + sine * 0.3) * 0.85;
   }
 
-  // Apply low-pass averaging filter for natural decay
-  const damping = 0.996 - (freq > 400 ? 0.002 : 0); // slightly more damping for highs
+  // Two-point average with frequency-dependent damping
+  // Lower strings ring longer, higher strings decay faster
+  const baseDamping = freq < 150 ? 0.998 : freq < 300 ? 0.996 : 0.994;
   for (let i = period; i < totalSamples; i++) {
-    data[i] = damping * 0.5 * (data[i - period] + data[i - period + 1]);
+    // Weighted average of 3 points for smoother tone
+    const p0 = data[i - period];
+    const p1 = data[i - period + 1];
+    const p2 = i - period + 2 < i ? data[i - period + 2] : p1;
+    data[i] = baseDamping * (0.5 * p0 + 0.35 * p1 + 0.15 * p2);
   }
 
-  // Apply gentle exponential decay envelope
-  const decayRate = 3.0 / duration;
+  // Apply attack + decay envelope
+  const attackSamples = Math.min(Math.round(sampleRate * 0.002), totalSamples);
+  const decayRate = 2.5 / duration;
   for (let i = 0; i < totalSamples; i++) {
-    data[i] *= Math.exp(-decayRate * (i / sampleRate)) * volume;
+    const attack = i < attackSamples ? i / attackSamples : 1.0;
+    data[i] *= attack * Math.exp(-decayRate * (i / sampleRate)) * volume;
   }
 
   const source = ctx.createBufferSource();
