@@ -44,7 +44,10 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
         }),
       ]);
 
-      const { data, error } = result as Awaited<ReturnType<typeof supabase.functions.invoke>>;
+      const { data, error } = result as {
+        data: { tablature?: string } | null;
+        error: { status?: number } | null;
+      };
       if (error) throw error;
 
       if (data?.tablature) {
