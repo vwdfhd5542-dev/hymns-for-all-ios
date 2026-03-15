@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Song, transposeLine } from "@/data/songs";
-import { useUpdateSong, useDeleteSong } from "@/hooks/useSongs";
+import { useUpdateSong } from "@/hooks/useSongs";
 import { usePitchDetection } from "@/hooks/usePitchDetection";
 import { chordEnrichmentMap } from "@/data/chordDiagrams";
 import { ChordDiagramDialog } from "@/components/ChordDiagram";
