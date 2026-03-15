@@ -1,11 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { X, Sparkles, Loader2 } from "lucide-react";
-import { useAddSong } from "@/hooks/useSongs";
+import { useAddSong, useSongs } from "@/hooks/useSongs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/useLanguage";
-
-const COLLECTIONS = ["Speranța", "Boanerges", "Hymns"];
 
 interface AddSongFormProps {
   onClose: () => void;
