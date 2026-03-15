@@ -23,9 +23,6 @@ interface TabNote {
 function parseTablature(tab: string): TabNote[] {
   const lines = tab.split("\n");
   const notes: TabNote[] = [];
-  const stringOrder = ["e", "B", "G", "D", "A", "E"];
-
-  // Collect all tab line groups (6 consecutive string lines)
   let i = 0;
   let groupTimeOffset = 0;
 
@@ -35,7 +32,6 @@ function parseTablature(tab: string): TabNote[] {
 
     while (j < lines.length && group.length < 6) {
       const line = lines[j].trim();
-      // Match: e|...|  or  E|...|  — flexible, supports multi-measure
       const m = line.match(/^([eBGDAE])\|(.+)/);
       if (m) {
         group.push({ label: m[1], content: m[2] });
@@ -48,112 +44,127 @@ function parseTablature(tab: string): TabNote[] {
     }
 
     if (group.length === 6) {
-      // Map each line to its string index (0=e, 1=B, 2=G, 3=D, 4=A, 5=E)
-      const mapped = group.map(g => {
-        const idx = stringOrder.indexOf(g.label === "E" ? "E" : g.label);
-        // Handle "E" — could be high e or low E based on position
-        return { content: g.content, label: g.label };
-      });
-
-      // Determine string index by position in the group (top=e, bottom=E)
-      const maxLen = Math.max(...mapped.map(m => m.content.length));
-      const tempo = 0.15; // seconds per column
+      const maxLen = Math.max(...group.map(g => g.content.length));
+      const tempo = 0.15;
 
       for (let col = 0; col < maxLen; col++) {
         for (let str = 0; str < 6; str++) {
-          const ch = mapped[str].content[col];
+          const ch = group[str].content[col];
           if (!ch || !/\d/.test(ch)) continue;
-
-          // Check for two-digit fret numbers
-          let fretStr = ch;
-          const nextCh = mapped[str].content[col + 1];
-          if (nextCh && /\d/.test(nextCh)) {
-            fretStr += nextCh;
-          }
-          
-          // Skip if this is the second digit of a two-digit number we already processed
+          // Skip second digit of two-digit frets
           if (col > 0) {
-            const prevCh = mapped[str].content[col - 1];
-            if (prevCh && /\d/.test(prevCh)) continue;
+            const prev = group[str].content[col - 1];
+            if (prev && /\d/.test(prev)) continue;
           }
-
+          let fretStr = ch;
+          const next = group[str].content[col + 1];
+          if (next && /\d/.test(next)) fretStr += next;
           const fret = parseInt(fretStr);
           if (isNaN(fret) || fret >= 25) continue;
 
           notes.push({
             time: groupTimeOffset + col * tempo,
             freq: fretToFreq(str, fret),
-            duration: 0.5,
+            duration: 0.45,
           });
         }
       }
-
-      groupTimeOffset += maxLen * tempo + 0.1; // gap between groups
+      groupTimeOffset += maxLen * tempo + 0.05;
       i = j;
     } else {
       i = j > i ? j : i + 1;
     }
   }
 
-  // Sort by time
   notes.sort((a, b) => a.time - b.time);
-
-  console.log(`[TablaturePlayer] Parsed ${notes.length} notes, duration: ${notes.length > 0 ? (notes[notes.length - 1].time + 0.5).toFixed(1) : 0}s`);
-
   return notes;
 }
 
-function createPluckSound(
-  ctx: AudioContext,
-  freq: number,
-  startTime: number,
-  duration: number,
-  volume: number = 0.3
-) {
-  // Use a more reliable approach: create gain envelope properly
-  const osc = ctx.createOscillator();
-  const osc2 = ctx.createOscillator();
-  const gainNode = ctx.createGain();
-  const filter = ctx.createBiquadFilter();
+// Generate WAV audio buffer from notes
+function generateWavBuffer(notes: TabNote[], sampleRate: number, tempoScale: number): ArrayBuffer {
+  if (notes.length === 0) return new ArrayBuffer(0);
 
-  osc.type = "triangle";
-  osc.frequency.value = freq;
-  osc2.type = "sine";
-  osc2.frequency.value = freq * 2;
+  const totalDuration = Math.max(...notes.map(n => (n.time + n.duration) * tempoScale)) + 0.3;
+  const numSamples = Math.ceil(totalDuration * sampleRate);
+  const buffer = new Float32Array(numSamples);
 
-  filter.type = "lowpass";
-  filter.frequency.value = Math.min(freq * 4, 8000);
-  filter.Q.value = 1;
+  for (const note of notes) {
+    const startSample = Math.floor(note.time * tempoScale * sampleRate);
+    const durSamples = Math.floor(note.duration * tempoScale * sampleRate);
+    const freq = note.freq;
 
-  // Envelope
-  gainNode.gain.setValueAtTime(0.001, startTime);
-  gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.008);
-  gainNode.gain.setValueAtTime(volume, startTime + 0.01);
-  gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    for (let s = 0; s < durSamples && startSample + s < numSamples; s++) {
+      const t = s / sampleRate;
+      const progress = s / durSamples;
 
-  osc.connect(filter);
-  osc2.connect(filter);
-  filter.connect(gainNode);
-  gainNode.connect(ctx.destination);
+      // Pluck envelope: fast attack, exponential decay
+      const attack = Math.min(t / 0.005, 1);
+      const decay = Math.exp(-progress * 5);
+      const envelope = attack * decay;
 
-  osc.start(startTime);
-  osc.stop(startTime + duration + 0.05);
-  osc2.start(startTime);
-  osc2.stop(startTime + duration + 0.05);
+      // Guitar-like timbre: fundamental + harmonics with decay
+      const fundamental = Math.sin(2 * Math.PI * freq * t);
+      const harmonic2 = 0.5 * Math.sin(2 * Math.PI * freq * 2 * t) * Math.exp(-progress * 7);
+      const harmonic3 = 0.25 * Math.sin(2 * Math.PI * freq * 3 * t) * Math.exp(-progress * 9);
+
+      const sample = envelope * (fundamental + harmonic2 + harmonic3) * 0.15;
+      buffer[startSample + s] += sample;
+    }
+  }
+
+  // Clamp
+  for (let i = 0; i < numSamples; i++) {
+    buffer[i] = Math.max(-1, Math.min(1, buffer[i]));
+  }
+
+  // Encode WAV
+  const wavBuffer = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(wavBuffer);
+
+  // WAV header
+  const writeString = (offset: number, str: string) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + numSamples * 2, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true); // chunk size
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true); // byte rate
+  view.setUint16(32, 2, true); // block align
+  view.setUint16(34, 16, true); // bits per sample
+  writeString(36, "data");
+  view.setUint32(40, numSamples * 2, true);
+
+  // Convert float to int16
+  for (let i = 0; i < numSamples; i++) {
+    const s = Math.max(-1, Math.min(1, buffer[i]));
+    view.setInt16(44 + i * 2, s * 0x7FFF, true);
+  }
+
+  return wavBuffer;
 }
 
 export function useTablaturePlayer() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const ctxRef = useRef<AudioContext | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<number>();
-  const startTimeRef = useRef(0);
-  const totalDurationRef = useRef(0);
+  const urlRef = useRef<string>("");
 
   const stop = useCallback(() => {
-    if (ctxRef.current) {
-      try { ctxRef.current.close(); } catch {}
-      ctxRef.current = null;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    if (urlRef.current) {
+      URL.revokeObjectURL(urlRef.current);
+      urlRef.current = "";
     }
     if (timerRef.current) {
       cancelAnimationFrame(timerRef.current);
@@ -163,62 +174,57 @@ export function useTablaturePlayer() {
     setProgress(0);
   }, []);
 
-  const play = useCallback(async (tablature: string, bpm: number = 120) => {
+  const play = useCallback((tablature: string, bpm: number = 120) => {
     stop();
 
     const notes = parseTablature(tablature);
     if (notes.length === 0) {
-      console.warn("[TablaturePlayer] No notes parsed from tablature");
+      console.warn("[TablaturePlayer] No notes parsed");
       return;
     }
 
-    // Create AudioContext — on iOS this requires user gesture (which we have from button click)
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    ctxRef.current = ctx;
-
-    // CRITICAL: Resume AudioContext (required on iOS Safari)
-    if (ctx.state === "suspended") {
-      await ctx.resume();
-    }
-
-    console.log(`[TablaturePlayer] AudioContext state: ${ctx.state}, playing ${notes.length} notes at ${bpm} BPM`);
-
     const tempoScale = 120 / bpm;
-    const totalDuration = Math.max(...notes.map(n => n.time + n.duration)) * tempoScale + 0.5;
-    totalDurationRef.current = totalDuration;
+    const sampleRate = 22050;
 
-    const now = ctx.currentTime + 0.05;
-    startTimeRef.current = now;
+    console.log(`[TablaturePlayer] Generating WAV: ${notes.length} notes at ${bpm} BPM`);
 
-    // Schedule all notes
-    for (const note of notes) {
-      createPluckSound(
-        ctx,
-        note.freq,
-        now + note.time * tempoScale,
-        Math.min(note.duration * tempoScale, 1.5),
-        0.2
-      );
-    }
+    const wavBuffer = generateWavBuffer(notes, sampleRate, tempoScale);
+    const blob = new Blob([wavBuffer], { type: "audio/wav" });
+    const url = URL.createObjectURL(blob);
+    urlRef.current = url;
 
-    setIsPlaying(true);
+    const audio = new Audio(url);
+    audioRef.current = audio;
 
-    // Progress animation
-    const updateProgress = () => {
-      if (!ctxRef.current) return;
-      const elapsed = ctxRef.current.currentTime - startTimeRef.current;
-      const pct = Math.min(elapsed / totalDuration, 1);
-      setProgress(pct);
-
-      if (pct >= 1) {
-        setIsPlaying(false);
-        setProgress(0);
-        ctxRef.current = null;
-        return;
-      }
+    audio.onplay = () => {
+      setIsPlaying(true);
+      const updateProgress = () => {
+        if (!audioRef.current) return;
+        const pct = audioRef.current.duration > 0
+          ? audioRef.current.currentTime / audioRef.current.duration
+          : 0;
+        setProgress(Math.min(pct, 1));
+        if (pct < 1 && !audioRef.current.paused) {
+          timerRef.current = requestAnimationFrame(updateProgress);
+        }
+      };
       timerRef.current = requestAnimationFrame(updateProgress);
     };
-    timerRef.current = requestAnimationFrame(updateProgress);
+
+    audio.onended = () => {
+      setIsPlaying(false);
+      setProgress(0);
+    };
+
+    audio.onerror = (e) => {
+      console.error("[TablaturePlayer] Audio error:", e);
+      setIsPlaying(false);
+    };
+
+    audio.play().catch(err => {
+      console.error("[TablaturePlayer] Play failed:", err);
+      setIsPlaying(false);
+    });
   }, [stop]);
 
   return { play, stop, isPlaying, progress };
