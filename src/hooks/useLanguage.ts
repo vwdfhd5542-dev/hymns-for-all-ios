@@ -54,6 +54,11 @@ const translations = {
   "song.translate": { ro: "Traduce", es: "Traducir", en: "Translate" },
   "song.translating": { ro: "Se traduce...", es: "Traduciendo...", en: "Translating..." },
   "song.translateError": { ro: "Eroare la traducere", es: "Error al traducir", en: "Translation error" },
+  "song.delete": { ro: "Șterge", es: "Eliminar", en: "Delete" },
+  "song.deleted": { ro: "Cântarea a fost ștearsă!", es: "¡Canción eliminada!", en: "Song deleted!" },
+  "song.deleteError": { ro: "Eroare la ștergere", es: "Error al eliminar", en: "Error deleting" },
+  "song.deleteTitle": { ro: "Șterge cântarea?", es: "¿Eliminar canción?", en: "Delete song?" },
+  "song.deleteConfirm": { ro: "Această acțiune nu poate fi anulată.", es: "Esta acción no se puede deshacer.", en: "This action cannot be undone." },
   "song.original": { ro: "Original", es: "Original", en: "Original" },
 
   // Pitch Detector (Library)
