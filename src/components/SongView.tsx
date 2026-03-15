@@ -441,25 +441,6 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
         onClose={() => setSelectedChord(null)}
       />
 
-      {/* Delete confirmation */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="bg-card border border-border rounded-2xl p-6 mx-6 max-w-sm w-full shadow-lg">
-            <h3 className="text-lg font-bold mb-2">{t("song.deleteTitle")}</h3>
-            <p className="text-sm text-muted-foreground mb-5">{t("song.deleteConfirm")}</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium">
-                {t("addSong.cancel")}
-              </button>
-              <button onClick={handleDeleteSong}
-                className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-medium">
-                {t("song.delete")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
