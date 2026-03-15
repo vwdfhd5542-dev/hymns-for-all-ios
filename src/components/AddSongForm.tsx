@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { X, Sparkles, Loader2 } from "lucide-react";
+import { X, Sparkles, Loader2, Plus } from "lucide-react";
 import { useAddSong, useSongs } from "@/hooks/useSongs";
+import { useCollections, useAddCollection } from "@/hooks/useCollections";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/useLanguage";
@@ -11,20 +12,38 @@ interface AddSongFormProps {
 
 export function AddSongForm({ onClose }: AddSongFormProps) {
   const { data: songs = [] } = useSongs();
+  const { data: dbCollections = [] } = useCollections();
+  const addCollection = useAddCollection();
+
   const collections = useMemo(() => {
     const unique = new Set(songs.map(s => s.collection));
-    // Ensure at least these defaults exist
     ["Speranța", "Boanerges", "Hymns", "Eldad", "Elim Harmony"].forEach(c => unique.add(c));
+    dbCollections.forEach(c => unique.add(c.name));
     return Array.from(unique).sort();
-  }, [songs]);
+  }, [songs, dbCollections]);
 
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [collection, setCollection] = useState("Hymns");
   const [lyrics, setLyrics] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showNewCol, setShowNewCol] = useState(false);
+  const [newColName, setNewColName] = useState("");
   const addSong = useAddSong();
   const { t } = useLanguage();
+
+  const handleAddCollection = () => {
+    const name = newColName.trim();
+    if (!name) return;
+    addCollection.mutate({ name }, {
+      onSuccess: () => {
+        setCollection(name);
+        setNewColName("");
+        setShowNewCol(false);
+        toast.success(t("collections.created"));
+      },
+    });
+  };
 
   const handleAutoChords = async () => {
     if (!lyrics.trim()) {
@@ -102,7 +121,24 @@ export function AddSongForm({ onClose }: AddSongFormProps) {
                   collection === col ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground"
                 }`}>{col}</button>
             ))}
+            <button onClick={() => setShowNewCol(true)}
+              className="px-3 py-2 rounded-xl text-sm font-medium bg-card border border-dashed border-border text-muted-foreground flex items-center gap-1">
+              <Plus size={14} /> Nueva
+            </button>
           </div>
+          {showNewCol && (
+            <div className="flex gap-2 mt-2">
+              <input value={newColName} onChange={e => setNewColName(e.target.value)}
+                placeholder={t("collections.namePlaceholder")} autoFocus
+                className="flex-1 bg-card border border-border rounded-xl px-3 py-2 text-sm outline-none focus:border-primary" />
+              <button onClick={handleAddCollection} className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-semibold">
+                {t("collections.create")}
+              </button>
+              <button onClick={() => { setShowNewCol(false); setNewColName(""); }} className="px-2 py-2 bg-card border border-border rounded-xl">
+                <X size={14} />
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex-1">
           <div className="flex items-center justify-between mb-1">
