@@ -239,13 +239,14 @@ function FingerpickingTab({ chord }: { chord: string }) {
           </div>
           <button
             onClick={() => player.isPlaying ? player.stop() : player.play(currentTab, 100)}
-            className={`w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
+            disabled={player.isLoading}
+            className={`w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 ${
               player.isPlaying 
                 ? "bg-destructive/15 text-destructive" 
                 : "bg-primary/10 text-primary"
             }`}
           >
-            {player.isPlaying ? <><Square size={12} /> {t("tab.stop")}</> : <><Play size={12} /> {t("tab.play")}</>}
+            {player.isLoading ? <><Loader2 size={12} className="animate-spin" /> Loading...</> : player.isPlaying ? <><Square size={12} /> {t("tab.stop")}</> : <><Play size={12} /> {t("tab.play")}</>}
           </button>
           {player.isPlaying && (
             <div className="h-1 bg-muted rounded-full overflow-hidden">
