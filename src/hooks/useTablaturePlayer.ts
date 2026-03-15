@@ -154,22 +154,19 @@ export function useTablaturePlayer() {
 
     const synth = new Tone.PolySynth(Tone.Synth, {
       maxPolyphony: 12,
-      voice: Tone.Synth,
-      options: {
-        oscillator: {
-          type: "fmtriangle",
-          modulationType: "sine",
-          modulationIndex: 2,
-          harmonicity: 1,
-        },
-        envelope: {
-          attack: 0.005,
-          decay: 0.4,
-          sustain: 0.08,
-          release: 0.6,
-        },
-        volume: -8,
+      oscillator: {
+        type: "fmtriangle" as any,
+        modulationType: "sine",
+        modulationIndex: 2,
+        harmonicity: 1,
       },
+      envelope: {
+        attack: 0.005,
+        decay: 0.4,
+        sustain: 0.08,
+        release: 0.6,
+      },
+      volume: -8,
     }).connect(reverb);
     synthRef.current = synth;
 
