@@ -141,6 +141,21 @@ const translations = {
 
   // Splash
   "splash.subtitle": { ro: "Cântări Creștine", es: "Cantos Cristianos", en: "Christian Hymns" },
+
+  // Tablature
+  "tab.title": { ro: "Tablatură Fingerpicking", es: "Tablatura Fingerpicking", en: "Fingerpicking Tablature" },
+  "tab.chordPatterns": { ro: "Paternuri per acord", es: "Patrones por acorde", en: "Chord patterns" },
+  "tab.fullSong": { ro: "Cântare completă", es: "Canción completa", en: "Full song" },
+  "tab.generate": { ro: "Generează tablatură", es: "Generar tablatura", en: "Generate tablature" },
+  "tab.regenerate": { ro: "Regenerează", es: "Regenerar", en: "Regenerate" },
+  "tab.generating": { ro: "Se generează...", es: "Generando...", en: "Generating..." },
+  "tab.error": { ro: "Eroare la generare", es: "Error al generar", en: "Generation error" },
+  "tab.rateLimited": { ro: "Prea multe cereri, reîncearcă mai târziu", es: "Demasiadas solicitudes, intenta más tarde", en: "Too many requests, try later" },
+  "tab.empty": { ro: "Apasă butonul pentru a genera tablatura", es: "Pulsa el botón para generar la tablatura", en: "Press the button to generate tablature" },
+  "tab.fingerpicking": { ro: "Fingerpicking", es: "Fingerpicking", en: "Fingerpicking" },
+  "tab.noTab": { ro: "Tablatură nu este disponibilă", es: "Tablatura no disponible", en: "Tablature not available" },
+  "tab.generateForChord": { ro: "Generează patern", es: "Generar patrón", en: "Generate pattern" },
+  "tab.viewFull": { ro: "Vezi tablatură completă", es: "Ver tablatura completa", en: "View full tablature" },
 } as const;
 
 type TranslationKey = keyof typeof translations;

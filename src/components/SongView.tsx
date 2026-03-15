@@ -4,7 +4,8 @@ import { useUpdateSong } from "@/hooks/useSongs";
 import { usePitchDetection } from "@/hooks/usePitchDetection";
 import { chordEnrichmentMap } from "@/data/chordDiagrams";
 import { ChordDiagramDialog } from "@/components/ChordDiagram";
-import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Mic, MicOff, Sparkles, Globe, Loader2 } from "lucide-react";
+import { TablatureView } from "@/components/TablatureView";
+import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Mic, MicOff, Sparkles, Globe, Loader2, Guitar } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage, languageNames, languageFlags, Language } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +60,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
   const [translateLang, setTranslateLang] = useState<Language | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [showTranslateMenu, setShowTranslateMenu] = useState(false);
+  const [showTablature, setShowTablature] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const animRef = useRef<number>();
   const [isGeneratingChords, setIsGeneratingChords] = useState(false);
@@ -156,6 +158,10 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
 
   const translateLanguages: Language[] = ["ro", "es", "en"];
 
+  if (showTablature) {
+    return <TablatureView song={song} onBack={() => setShowTablature(false)} />;
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -208,6 +214,10 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
                     </div>
                   )}
                 </div>
+                <button onClick={() => setShowTablature(true)}
+                  className="min-w-[40px] min-h-[44px] flex items-center justify-center text-muted-foreground">
+                  <Guitar size={17} />
+                </button>
                 <button onClick={() => { setIsEditing(true); setEditLyrics(song.lyrics); }}
                   className="min-w-[40px] min-h-[44px] flex items-center justify-center text-muted-foreground">
                   <Edit3 size={17} />
