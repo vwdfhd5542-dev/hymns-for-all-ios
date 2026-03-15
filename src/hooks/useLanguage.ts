@@ -73,7 +73,7 @@ const translations = {
   "addSong.artistPlaceholder": { ro: "Numele artistului", es: "Nombre del artista", en: "Artist name" },
   "addSong.collection": { ro: "Colecția", es: "Colección", en: "Collection" },
   "addSong.lyrics": { ro: "Versuri", es: "Letras", en: "Lyrics" },
-  "addSong.lyricsHint": { ro: "Scrie versurile fără acorduri, apoi apasă „Adaugă acorduri AI" sau adaugă manual: [Am]Text [G]versuri", es: "Escribe la letra sin acordes, luego pulsa \"Añadir acordes AI\" o añade manualmente: [Am]Texto [G]letra", en: "Write lyrics without chords, then press \"Add AI chords\" or add manually: [Am]Text [G]lyrics" },
+  "addSong.lyricsHint": { ro: "Scrie versurile, apoi apasa Adauga acorduri AI sau adauga manual: [Am]Text [G]versuri", es: "Escribe la letra, luego pulsa Acordes AI o manualmente: [Am]Texto [G]letra", en: "Write lyrics, then press AI Chords or add manually: [Am]Text [G]lyrics" },
   "addSong.aiChords": { ro: "Adaugă acorduri AI", es: "Añadir acordes AI", en: "Add AI chords" },
   "addSong.generating": { ro: "Generare...", es: "Generando...", en: "Generating..." },
   "addSong.lyricsRequired": { ro: "Scrie mai întâi versurile", es: "Escribe primero la letra", en: "Write the lyrics first" },
