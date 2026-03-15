@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { ChevronLeft, Loader2, Guitar } from "lucide-react";
+import { ChevronLeft, Loader2, Guitar, Play, Square } from "lucide-react";
 import { Song } from "@/data/songs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/useLanguage";
+import { useTablaturePlayer } from "@/hooks/useTablaturePlayer";
 
 type Level = "basic" | "intermediate" | "advanced";
 
