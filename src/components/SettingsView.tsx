@@ -162,6 +162,20 @@ export function SettingsView() {
             {t("settings.aboutText")}
           </p>
         </div>
+
+        {/* Account */}
+        <div className="bg-card rounded-xl p-4 border border-border">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-xs text-muted-foreground">{user?.email}</span>
+          </div>
+          <button
+            onClick={signOut}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-destructive/15 text-destructive text-sm font-semibold active:scale-[0.98] transition-all"
+          >
+            <LogOut size={16} />
+            Cerrar sesión
+          </button>
+        </div>
       </div>
     </div>
   );
