@@ -1,10 +1,10 @@
-import { Search, X, Music, Plus } from "lucide-react";
-import { useState, useMemo } from "react";
+import { Search, X, Music, Plus, Heart, Trash2 } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
 import { Song } from "@/data/songs";
-import { Heart } from "lucide-react";
 import { PitchDetector } from "./PitchDetector";
-import { useSongs } from "@/hooks/useSongs";
+import { useSongs, useDeleteSong } from "@/hooks/useSongs";
 import { useLanguage } from "@/hooks/useLanguage";
+import { toast } from "sonner";
 
 interface SongLibraryProps {
   onSongSelect: (song: Song) => void;
