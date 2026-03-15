@@ -51,10 +51,12 @@ export function parseTablature(tab: string): ParsedTablature {
       const groupIndex = groups.length;
       groups.push({ startCol: globalColOffset, endCol: globalColOffset + maxLen - 1, lineStart: i });
 
+      // Find columns that have at least one note (digit not preceded by another digit)
       for (let col = 0; col < maxLen; col++) {
         for (let str = 0; str < 6; str++) {
           const ch = group[str].content[col];
           if (!ch || !/\d/.test(ch)) continue;
+          // Skip if this digit is a continuation of a multi-digit fret
           if (col > 0 && /\d/.test(group[str].content[col - 1] || "")) continue;
 
           let fretStr = ch;
