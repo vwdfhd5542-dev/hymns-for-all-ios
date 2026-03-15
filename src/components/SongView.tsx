@@ -52,6 +52,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
   const [isEditing, setIsEditing] = useState(false);
   const [editLyrics, setEditLyrics] = useState(song.lyrics);
   const [showComplexChords, setShowComplexChords] = useState(false);
+  const [selectedChord, setSelectedChord] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const animRef = useRef<number>();
   const updateSong = useUpdateSong();
