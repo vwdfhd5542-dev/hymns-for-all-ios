@@ -1,18 +1,13 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ChevronLeft, Loader2, Guitar, Play, Square } from "lucide-react";
 import { Song } from "@/data/songs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/useLanguage";
-import { useTablaturePlayer } from "@/hooks/useTablaturePlayer";
+import { useTablaturePlayer, parseTablature } from "@/hooks/useTablaturePlayer";
+import { TablatureDisplay } from "@/components/TablatureDisplay";
 
 type Level = "basic" | "intermediate" | "advanced";
-
-const levelLabels: Record<Level, Record<string, string>> = {
-  basic: { ro: "Básico", es: "Básico", en: "Basic" },
-  intermediate: { ro: "Intermedio", es: "Intermedio", en: "Intermediate" },
-  advanced: { ro: "Avansat", es: "Avanzado", en: "Advanced" },
-};
 
 const levelColors: Record<Level, string> = {
   basic: "bg-green-500/15 text-green-600 border-green-500/30",
@@ -26,7 +21,7 @@ interface TablatureViewProps {
 }
 
 export function TablatureView({ song, onBack }: TablatureViewProps) {
-  const { language, t } = useLanguage();
+  const { t } = useLanguage();
   const [level, setLevel] = useState<Level>("basic");
   const [mode, setMode] = useState<"chord" | "full">("chord");
   const [tablature, setTablature] = useState<Record<string, Record<string, string>>>({});
@@ -114,7 +109,7 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
             </button>
           </div>
 
-          {/* Level selector */}
+          {/* Level selector - using i18n */}
           <div className="flex gap-2 mb-4">
             {levels.map((l) => (
               <button
@@ -124,7 +119,7 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
                   level === l ? levelColors[l] : "bg-card border-border text-muted-foreground"
                 }`}
               >
-                {levelLabels[l][language] || levelLabels[l].en}
+                {t(`tab.level.${l}` as any)}
               </button>
             ))}
           </div>
@@ -148,7 +143,7 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
             )}
           </button>
 
-          {/* Tablature display */}
+          {/* Tablature display with player controls */}
           {currentTab && (
             <div className="bg-card rounded-2xl border border-border overflow-hidden mb-4">
               {/* Player controls */}
@@ -156,8 +151,8 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
                 <button
                   onClick={() => player.isPlaying ? player.stop() : player.play(currentTab, bpm)}
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 ${
-                    player.isPlaying 
-                      ? "bg-destructive text-destructive-foreground" 
+                    player.isPlaying
+                      ? "bg-destructive text-destructive-foreground"
                       : "bg-primary text-primary-foreground"
                   }`}
                 >
@@ -166,7 +161,7 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
 
                 {/* Progress bar */}
                 <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-primary rounded-full transition-all duration-100"
                     style={{ width: `${player.progress * 100}%` }}
                   />
@@ -188,12 +183,12 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
                 </div>
               </div>
 
-              {/* Tab content */}
-              <div className="p-4 overflow-x-auto">
-                <pre className="font-mono text-[11px] leading-[1.5] text-foreground whitespace-pre overflow-x-auto scrollbar-none">
-                  {currentTab}
-                </pre>
-              </div>
+              {/* Tab content with highlighting */}
+              <TablatureDisplay
+                tablature={currentTab}
+                currentColumn={player.currentColumn}
+                isPlaying={player.isPlaying}
+              />
             </div>
           )}
 
