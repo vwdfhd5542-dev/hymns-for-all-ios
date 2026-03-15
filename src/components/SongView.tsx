@@ -2,7 +2,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Song, transposeLine } from "@/data/songs";
 import { useUpdateSong } from "@/hooks/useSongs";
 import { usePitchDetection } from "@/hooks/usePitchDetection";
-import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Guitar, Mic, MicOff } from "lucide-react";
+import { chordEnrichmentMap } from "@/data/chordDiagrams";
+import { ChordDiagramDialog } from "@/components/ChordDiagram";
+import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Guitar, Mic, MicOff, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface SongViewProps {
