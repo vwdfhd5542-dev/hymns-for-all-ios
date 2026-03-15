@@ -14,11 +14,15 @@ interface SongViewProps {
   onToggleFavorite: () => void;
 }
 
-function parseChordsAbove(line: string, transpose: number): { chords: string; lyrics: string } | null {
+function enrichChord(chord: string): string {
+  return chordEnrichmentMap[chord] || chord;
+}
+
+function parseChordsAbove(line: string, transpose: number, enrich: boolean): { chords: { text: string; pos: number }[]; lyrics: string } | null {
   const transposed = transposeLine(line, transpose);
   const regex = /\[([^\]]+)\]/g;
   let match;
-  let chordLine = "";
+  const chords: { text: string; pos: number }[] = [];
   let lyricLine = "";
   let lastIndex = 0;
   let hasChords = false;
@@ -26,11 +30,9 @@ function parseChordsAbove(line: string, transpose: number): { chords: string; ly
   while ((match = regex.exec(transposed)) !== null) {
     hasChords = true;
     const textBefore = transposed.slice(lastIndex, match.index).replace(/\[[^\]]*\]/g, "");
-    while (chordLine.length < lyricLine.length + textBefore.length) {
-      chordLine += " ";
-    }
-    chordLine += match[1];
     lyricLine += textBefore;
+    const chordText = enrich ? enrichChord(match[1]) : match[1];
+    chords.push({ text: chordText, pos: lyricLine.length });
     lastIndex = regex.lastIndex;
   }
 
@@ -38,7 +40,7 @@ function parseChordsAbove(line: string, transpose: number): { chords: string; ly
   lyricLine += remaining;
 
   if (!hasChords) return null;
-  return { chords: chordLine, lyrics: lyricLine };
+  return { chords, lyrics: lyricLine };
 }
 
 export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongViewProps) {
