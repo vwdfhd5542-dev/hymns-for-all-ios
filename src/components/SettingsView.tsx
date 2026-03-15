@@ -1,25 +1,30 @@
 import { useState } from "react";
-import { Moon, Sun, Info, Smartphone, Droplets, ChevronDown, ChevronUp, Mic, Music, Guitar, Sparkles, FolderOpen, Scroll, Edit3 } from "lucide-react";
+import { Moon, Sun, Info, Smartphone, Droplets, ChevronDown, ChevronUp, Mic, Music, Guitar, Sparkles, FolderOpen, Scroll, Edit3, Globe } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
+import { useLanguage, Language, languageNames, languageFlags } from "@/hooks/useLanguage";
 
 export function SettingsView() {
   const { mode, glassEnabled, toggleMode, toggleGlass } = useTheme();
+  const { language, setLanguage, t } = useLanguage();
   const [showFeatures, setShowFeatures] = useState(false);
+  const [showLanguages, setShowLanguages] = useState(false);
 
   const features = [
-    { icon: Mic, name: "Detectare Ton", desc: "Detectează tonalitatea cântării folosind microfonul. Folosește algoritmul Krumhansl-Kessler pentru a identifica dacă e major sau minor." },
-    { icon: Sparkles, name: "Acorduri AI", desc: "Adaugă automat acorduri la versuri folosind inteligență artificială. Scrie doar versurile și AI-ul pune acordurile corecte." },
-    { icon: Guitar, name: "Acorduri Complexe", desc: "Vizualizează variante avansate ale acordurilor (maj7, sus4, add9, etc.) pentru fiecare acord din cântare." },
-    { icon: Edit3, name: "Editare Manuală", desc: "Editează versurile și acordurile direct în aplicație. Folosește formatul [Acord] pentru a marca acordurile." },
-    { icon: Music, name: "Transpunere", desc: "Schimbă tonalitatea cântării cu +/- semitonuri. Toate acordurile se actualizează automat." },
-    { icon: Scroll, name: "Defilare Automată", desc: "Activează scroll-ul automat pentru a citi versurile fără mâini. Viteza este ajustabilă." },
-    { icon: FolderOpen, name: "Colecții", desc: "Creează playlisturi personalizate și organizează cântările în colecții." },
+    { icon: Mic, name: t("feature.pitchDetection"), desc: t("feature.pitchDesc") },
+    { icon: Sparkles, name: t("feature.aiChords"), desc: t("feature.aiChordsDesc") },
+    { icon: Guitar, name: t("feature.complexChords"), desc: t("feature.complexChordsDesc") },
+    { icon: Edit3, name: t("feature.manualEdit"), desc: t("feature.manualEditDesc") },
+    { icon: Music, name: t("feature.transpose"), desc: t("feature.transposeDesc") },
+    { icon: Scroll, name: t("feature.autoScroll"), desc: t("feature.autoScrollDesc") },
+    { icon: FolderOpen, name: t("feature.collections"), desc: t("feature.collectionsDesc") },
   ];
+
+  const languages: Language[] = ["ro", "es", "en"];
 
   return (
     <div className="flex flex-col h-full">
       <div className="px-4 safe-top pb-2">
-        <h1 className="text-3xl font-bold tracking-tight pt-4">Setări</h1>
+        <h1 className="text-3xl font-bold tracking-tight pt-4">{t("settings.title")}</h1>
       </div>
 
       <div className="px-4 pb-24 space-y-4 mt-4 overflow-y-auto">
@@ -31,12 +36,47 @@ export function SettingsView() {
             </div>
             <div>
               <p className="font-semibold">HymnsRO</p>
-              <p className="text-xs text-muted-foreground">Versiunea 1.1.0</p>
+              <p className="text-xs text-muted-foreground">{t("settings.version")} 1.1.0</p>
             </div>
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Aplicație pentru cântări creștine românești cu acorduri, transpunere și defilare automată.
+            {t("settings.description")}
           </p>
+        </div>
+
+        {/* Language selector */}
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
+          <button onClick={() => setShowLanguages(v => !v)} className="w-full flex items-center justify-between px-4 py-3.5 active:bg-muted/50 transition-colors">
+            <div className="flex items-center gap-3">
+              <Globe size={18} className="text-primary" />
+              <div className="text-left">
+                <span className="text-sm font-medium">{t("settings.language")}</span>
+                <p className="text-[11px] text-muted-foreground">{languageFlags[language]} {languageNames[language]}</p>
+              </div>
+            </div>
+            {showLanguages ? <ChevronUp size={18} className="text-muted-foreground" /> : <ChevronDown size={18} className="text-muted-foreground" />}
+          </button>
+          {showLanguages && (
+            <div className="border-t border-border">
+              {languages.map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => { setLanguage(lang); setShowLanguages(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 active:bg-muted/50 transition-colors ${
+                    language === lang ? "bg-primary/10" : ""
+                  }`}
+                >
+                  <span className="text-lg">{languageFlags[lang]}</span>
+                  <span className="text-sm font-medium flex-1 text-left">{languageNames[lang]}</span>
+                  {language === lang && (
+                    <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                      <span className="text-primary-foreground text-xs">✓</span>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Theme toggle */}
@@ -45,8 +85,8 @@ export function SettingsView() {
             <div className="flex items-center gap-3">
               {mode === "dark" ? <Moon size={18} className="text-primary" /> : <Sun size={18} className="text-primary" />}
               <div className="text-left">
-                <span className="text-sm font-medium">Mod {mode === "dark" ? "întunecat" : "luminos"}</span>
-                <p className="text-[11px] text-muted-foreground">Apasă pentru a schimba</p>
+                <span className="text-sm font-medium">{mode === "dark" ? t("settings.darkMode") : t("settings.lightMode")}</span>
+                <p className="text-[11px] text-muted-foreground">{t("settings.tapToChange")}</p>
               </div>
             </div>
             <div className={`w-12 h-7 rounded-full flex items-center shrink-0 px-1 transition-colors ${mode === "dark" ? "bg-primary" : "bg-muted"}`}>
@@ -58,8 +98,8 @@ export function SettingsView() {
             <div className="flex items-center gap-3">
               <Droplets size={18} className="text-primary" />
               <div className="text-left">
-                <span className="text-sm font-medium">Liquid Glass</span>
-                <p className="text-[11px] text-muted-foreground">Design translucid tip Apple</p>
+                <span className="text-sm font-medium">{t("settings.liquidGlass")}</span>
+                <p className="text-[11px] text-muted-foreground">{t("settings.liquidGlassDesc")}</p>
               </div>
             </div>
             <div className={`w-12 h-7 rounded-full flex items-center shrink-0 px-1 transition-colors ${glassEnabled ? "bg-primary" : "bg-muted"}`}>
@@ -74,8 +114,8 @@ export function SettingsView() {
             <div className="flex items-center gap-3">
               <Info size={18} className="text-primary" />
               <div className="text-left">
-                <span className="text-sm font-medium">Funcții disponibile</span>
-                <p className="text-[11px] text-muted-foreground">Descoperă ce poate face aplicația</p>
+                <span className="text-sm font-medium">{t("settings.features")}</span>
+                <p className="text-[11px] text-muted-foreground">{t("settings.featuresDesc")}</p>
               </div>
             </div>
             {showFeatures ? <ChevronUp size={18} className="text-muted-foreground" /> : <ChevronDown size={18} className="text-muted-foreground" />}
@@ -102,11 +142,11 @@ export function SettingsView() {
         <div className="bg-card rounded-xl p-4 border border-border">
           <div className="flex items-center gap-3 mb-2">
             <Smartphone size={18} className="text-primary" />
-            <span className="font-medium text-sm">Instalează aplicația</span>
+            <span className="font-medium text-sm">{t("settings.install")}</span>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Pe iPhone: apasă butonul <strong>Share</strong> → <strong>Add to Home Screen</strong>.
-            Pe Android: apasă meniul browserului → <strong>Install app</strong>.
+            {t("settings.installIOS")}<br />
+            {t("settings.installAndroid")}
           </p>
         </div>
 
@@ -114,11 +154,10 @@ export function SettingsView() {
         <div className="bg-card rounded-xl p-4 border border-border">
           <div className="flex items-center gap-3 mb-2">
             <Info size={18} className="text-muted-foreground" />
-            <span className="font-medium text-sm">Despre</span>
+            <span className="font-medium text-sm">{t("settings.about")}</span>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Cântări din colecțiile Speranța, Boanerges și alte imnuri creștine tradiționale.
-            Funcționează offline după prima încărcare.
+            {t("settings.aboutText")}
           </p>
         </div>
       </div>

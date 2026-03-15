@@ -1,8 +1,10 @@
 import { usePitchDetection } from "@/hooks/usePitchDetection";
 import { Mic, MicOff, Music } from "lucide-react";
+import { useLanguage } from "@/hooks/useLanguage";
 
 export function PitchDetector() {
   const { isListening, detectedNote, detectedKey, keyQuality, confidence, startListening, stopListening } = usePitchDetection();
+  const { t } = useLanguage();
 
   return (
     <div className="mx-4 mb-4">
@@ -22,14 +24,14 @@ export function PitchDetector() {
 
         <div className="flex-1 text-left">
           <p className="text-sm font-semibold">
-            {isListening ? "Ascultare live..." : "Detectare ton"}
+            {isListening ? t("pitch.listening") : t("pitch.detect")}
           </p>
           <p className="text-xs text-muted-foreground">
             {isListening
               ? detectedNote
-                ? `Nota curentă: ${detectedNote}`
-                : "Cântă sau redă o melodie..."
-              : "Apasă pentru a detecta tonul"}
+                ? `${t("pitch.currentNote")}: ${detectedNote}`
+                : t("pitch.sing")
+              : t("pitch.tap")}
           </p>
         </div>
 
