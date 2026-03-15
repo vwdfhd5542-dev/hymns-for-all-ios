@@ -367,7 +367,14 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
 
           {isEditing ? (
             <div>
-              <p className="text-xs text-muted-foreground mb-2">{t("song.editHint")}</p>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs text-muted-foreground">{t("song.editHint")}</p>
+                <button onClick={handleAiChords} disabled={isGeneratingChords || !editLyrics.trim()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/15 text-primary text-xs font-semibold disabled:opacity-40 transition-all active:scale-95">
+                  {isGeneratingChords ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                  {isGeneratingChords ? t("addSong.generating") : t("addSong.aiChords")}
+                </button>
+              </div>
               <textarea
                 value={editLyrics}
                 onChange={(e) => setEditLyrics(e.target.value)}
