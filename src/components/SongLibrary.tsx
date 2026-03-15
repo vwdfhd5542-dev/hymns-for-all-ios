@@ -75,8 +75,9 @@ function SwipeSongCard({ song, songKey, isFavorite, onSelect, t }: {
   return (
     <>
       <div className="relative overflow-hidden rounded-xl">
-        {/* Delete button behind */}
-        <div className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center bg-destructive rounded-r-xl">
+        {/* Delete button behind - only visible when swiped */}
+        <div className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center bg-destructive rounded-r-xl"
+          style={{ opacity: offsetX < 0 ? 1 : 0, pointerEvents: offsetX < 0 ? 'auto' : 'none' }}>
           <button onClick={() => setShowConfirm(true)} className="flex flex-col items-center gap-1 text-destructive-foreground">
             <Trash2 size={20} />
             <span className="text-[10px] font-medium">{t("song.delete" as any)}</span>
