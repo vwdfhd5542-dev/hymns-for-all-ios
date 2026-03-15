@@ -30,23 +30,39 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
   const player = useTablaturePlayer();
 
   const currentTab = tablature[mode]?.[level];
+  const GENERATION_TIMEOUT_MS = 30000;
 
   const generate = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-tablature", {
-        body: { lyrics: song.lyrics, title: song.title, artist: song.artist, level, mode },
-      });
+      const result = await Promise.race([
+        supabase.functions.invoke("generate-tablature", {
+          body: { lyrics: song.lyrics, title: song.title, artist: song.artist, level, mode },
+        }),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error("GENERATION_TIMEOUT")), GENERATION_TIMEOUT_MS);
+        }),
+      ]);
+
+      const { data, error } = result as {
+        data: { tablature?: string } | null;
+        error: { status?: number } | null;
+      };
       if (error) throw error;
+
       if (data?.tablature) {
         setTablature(prev => ({
           ...prev,
           [mode]: { ...(prev[mode] || {}), [level]: data.tablature },
         }));
+      } else {
+        throw new Error("EMPTY_TABLATURE");
       }
     } catch (err: any) {
       console.error(err);
-      if (err?.status === 429) {
+      if (err?.message === "GENERATION_TIMEOUT") {
+        toast.error("La generación tardó demasiado. He acortado el proceso para que ya no se quede colgado.");
+      } else if (err?.status === 429) {
         toast.error(t("tab.rateLimited"));
       } else {
         toast.error(t("tab.error"));

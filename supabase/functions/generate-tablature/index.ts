@@ -6,170 +6,343 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+type Level = "basic" | "intermediate" | "advanced";
+type Mode = "chord" | "full";
+
+interface SongSection {
+  label: string;
+  lines: string[];
+  chords: string[];
+}
+
+const CHORD_REGEX = /\[([^\]]+)\]/g;
+const LINE_LABELS = ["e", "B", "G", "D", "A", "E"];
+const OPEN_CHORD_SHAPES: Record<string, Array<number | null>> = {
+  C: [0, 1, 0, 2, 3, null],
+  G: [3, 0, 0, 0, 2, 3],
+  Am: [0, 1, 2, 2, 0, null],
+  F: [1, 1, 2, 3, 3, 1],
+  D: [2, 3, 2, 0, null, null],
+  Dm: [1, 3, 2, 0, null, null],
+  Em: [0, 0, 0, 2, 2, 0],
+  E: [0, 0, 1, 2, 2, 0],
+  A: [0, 2, 2, 2, 0, null],
+  Bm: [2, 3, 4, 4, 2, null],
+  "C#m": [4, 5, 6, 6, 4, null],
+  Gm: [3, 3, 3, 5, 5, 3],
+};
+
+const levelDescriptions: Record<Level, string> = {
+  basic: `- Keep it compact and easy.
+- Use open-position or first-position voicings.
+- Melody should be clear on strings e and B.
+- Use simple bass + melody movement.`,
+  intermediate: `- Keep the real hymn melody recognizable.
+- Use alternating bass where helpful.
+- Add light passing tones and occasional hammer-ons or pull-offs.
+- Keep output compact and playable.`,
+  advanced: `- Preserve the real sung melody as closely as possible.
+- Use independent bass and richer inner voices.
+- Add tasteful ornamentation only when musical.
+- Keep the arrangement compact; do not over-write repeated sections.`,
+};
+
+function extractOrderedChords(text: string): string[] {
+  const chords = Array.from(text.matchAll(CHORD_REGEX)).map((match) => match[1].trim()).filter(Boolean);
+  return Array.from(new Set(chords));
+}
+
+function stripChordMarkup(text: string): string {
+  return text.replace(CHORD_REGEX, "").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function cleanLyricLine(line: string): string {
+  return line
+    .replace(/^\d+\.\s*/, "")
+    .replace(/^R:\s*/i, "")
+    .replace(/^\/:\s*/, "")
+    .replace(/\s*:\/\s*$/, "")
+    .trim();
+}
+
+function parseSections(lyrics: string): SongSection[] {
+  const blocks = lyrics
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  let verseIndex = 1;
+
+  return blocks
+    .map((block) => {
+      const rawLines = block.split("\n").map((line) => line.trim()).filter(Boolean);
+      if (!rawLines.length) return null;
+
+      const firstLine = rawLines[0];
+      let label = `Verse ${verseIndex}`;
+
+      if (/^R:/i.test(firstLine)) {
+        label = "Chorus";
+      } else {
+        verseIndex += 1;
+      }
+
+      const lines = rawLines.map(cleanLyricLine).filter(Boolean).slice(0, 3);
+      const chords = extractOrderedChords(block).slice(0, 6);
+
+      return lines.length ? { label, lines, chords } : null;
+    })
+    .filter((section): section is SongSection => Boolean(section));
+}
+
+function buildSectionDigest(lyrics: string): { form: string; sections: SongSection[] } {
+  const sections = parseSections(lyrics);
+  const selected: SongSection[] = [];
+  let hasVerse = false;
+  let hasChorus = false;
+
+  for (const section of sections) {
+    if (section.label.startsWith("Verse")) {
+      if (hasVerse) continue;
+      hasVerse = true;
+      selected.push({ ...section, label: "Verse" });
+    } else if (section.label === "Chorus") {
+      if (hasChorus) continue;
+      hasChorus = true;
+      selected.push(section);
+    } else if (selected.length < 3) {
+      selected.push(section);
+    }
+
+    if (selected.length >= 3) break;
+  }
+
+  if (!selected.length) {
+    selected.push({
+      label: "Verse",
+      lines: stripChordMarkup(lyrics).split("\n").map(cleanLyricLine).filter(Boolean).slice(0, 3),
+      chords: extractOrderedChords(lyrics).slice(0, 6),
+    });
+  }
+
+  const form = selected.map((section) => section.label).join(" + ") || "Verse";
+  return { form, sections: selected };
+}
+
+function simplifyChordName(chord: string): string {
+  const root = chord.split("/")[0].replace(/\([^)]*\)/g, "").trim();
+  if (OPEN_CHORD_SHAPES[root]) return root;
+
+  const simplified = root
+    .replace(/maj7|maj|sus2|sus4|add\d+|dim|aug/gi, "")
+    .replace(/m7/gi, "m")
+    .replace(/7|9|11|13/gi, "");
+
+  if (OPEN_CHORD_SHAPES[simplified]) return simplified;
+  return simplified.endsWith("m") ? "Am" : "C";
+}
+
+function beatSegment(fret: number | null): string {
+  if (fret === null) return "------";
+  const value = String(fret);
+  return `--${value}${"-".repeat(Math.max(0, 4 - value.length))}`;
+}
+
+function pickBassString(shape: Array<number | null>): number {
+  for (const index of [5, 4, 3]) {
+    if (shape[index] !== null) return index;
+  }
+  return 4;
+}
+
+function renderBeatwiseChordLine(chords: string[]): string {
+  const beatShapes = Array.from({ length: 4 }, (_, index) => {
+    const chord = chords[index] ?? chords[chords.length - 1] ?? "C";
+    return OPEN_CHORD_SHAPES[simplifyChordName(chord)] ?? OPEN_CHORD_SHAPES.C;
+  });
+
+  return LINE_LABELS.map((label, stringIndex) => {
+    const segments = beatShapes.map((shape, beatIndex) => {
+      const bassString = pickBassString(shape);
+      const activeStrings = [bassString, 2, 1, 0];
+      const activeIndex = activeStrings[beatIndex] ?? 0;
+      return beatSegment(activeIndex === stringIndex ? shape[stringIndex] : null);
+    });
+
+    return `${label}|${segments.join("|")}|`;
+  }).join("\n");
+}
+
+function buildFallbackTablature(lyrics: string, mode: Mode): string {
+  const chordList = extractOrderedChords(lyrics);
+
+  if (mode === "chord") {
+    const fallbackChords = chordList.slice(0, 8);
+    return fallbackChords
+      .map((chord) => `${chord}\n${renderBeatwiseChordLine([chord, chord, chord, chord])}`)
+      .join("\n\n");
+  }
+
+  const { sections } = buildSectionDigest(lyrics);
+  return sections
+    .map((section) => {
+      const renderedLines = section.lines.slice(0, 2).map((line) => {
+        const lineChords = extractOrderedChords(line).slice(0, 4);
+        const sectionChords = lineChords.length ? lineChords : section.chords.slice(0, 4);
+        return `[${section.label} - "${line}"]\n${renderBeatwiseChordLine(sectionChords)}`;
+      });
+
+      return renderedLines.join("\n\n");
+    })
+    .join("\n\n");
+}
+
+function buildPrompt(params: {
+  artist?: string;
+  form: string;
+  level: Level;
+  lyrics: string;
+  mode: Mode;
+  sectionDigest: SongSection[];
+  title: string;
+  chordList: string[];
+}): string {
+  const { artist, form, level, mode, sectionDigest, title, chordList } = params;
+  const sectionSummary = sectionDigest
+    .map((section) => `${section.label}\nLyrics: ${section.lines.join(" / ")}\nChords: ${section.chords.join(", ")}`)
+    .join("\n\n");
+
+  if (mode === "chord") {
+    return `You are a Romanian hymn guitarist.
+
+Create ONE compact fingerpicking measure for each chord in "${title}" by ${artist || "Traditional"}.
+Chords: ${chordList.join(", ")}
+Reference lyric excerpt: ${stripChordMarkup(params.lyrics).split("\n").map(cleanLyricLine).filter(Boolean).slice(0, 2).join(" / ")}
+Difficulty: ${level}
+${levelDescriptions[level]}
+
+Rules:
+- Return only plain text tablature.
+- One measure per chord.
+- Keep each pattern short and playable.
+- Standard guitar tab only: e B G D A E.
+- No explanations, no markdown.`;
+  }
+
+  return `You are a Romanian hymn transcriber.
+
+Create a FAST, compact fingerstyle arrangement for "${title}" by ${artist || "Traditional Romanian hymn"}.
+Detected song form: ${form}.
+Generate ONLY unique sections, not every repeated verse.
+If verses repeat the same melody, write one Verse template only.
+
+Section digest:
+${sectionSummary}
+
+Difficulty: ${level}
+${levelDescriptions[level]}
+
+Hard limits:
+- Max 4 sections total.
+- Max 8 bars per section.
+- Output only [Intro], [Verse], [Chorus], [Outro] when needed.
+- Keep the total answer under 140 lines.
+- Standard guitar tab only.
+- No explanations, no markdown.`;
+}
+
+function isTimeoutError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return error.name === "AbortError" || error.name === "TimeoutError" || /aborted|timeout/i.test(error.message);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { lyrics, title, artist, level, mode } = await req.json();
-
-    // Extract chords from lyrics
-    const chordRegex = /\[([^\]]+)\]/g;
-    const chords = new Set<string>();
-    let match;
-    while ((match = chordRegex.exec(lyrics)) !== null) {
-      chords.add(match[1]);
-    }
-    const chordList = Array.from(chords).join(", ");
-
-    // Strip chords to get pure lyrics for melody reference
-    const pureLyrics = lyrics.replace(/\[([^\]]+)\]/g, "").trim();
-
-    const levelDescriptions: Record<string, string> = {
-      basic: `Simple fingerpicking: thumb plays root bass note on beats 1 and 3, index and middle alternate on treble strings playing the melody.
-- Use ONLY open position chords (frets 0-3).
-- The melody MUST follow the real sung melody of the hymn — place the correct melody notes on strings 1 and 2.
-- Keep a steady, repetitive pattern per chord. Travis picking style.`,
-      intermediate: `Intermediate fingerpicking with thumb-index-middle-ring (p-i-m-a):
-- Thumb plays alternating bass (root + 5th) on strings 4-6, beats 1 and 3.
-- Fingers play the REAL melody of the hymn on strings 1-3.
-- Add hammer-ons (h) and pull-offs (p) for ornamentation.
-- Include passing tones between chord changes.`,
-      advanced: `Advanced fingerstyle solo guitar arrangement:
-- Strings 1-2: EXACT melody of the hymn, note for note as it is actually sung.
-- Strings 4-6: Independent bass line with alternating bass (root + 5th) Travis picking on beats 1 and 3.
-- Strings 2-3: Harmonic fill between melody and bass.
-- Use hammer-ons (h), pull-offs (p), slides (/,\\), and natural harmonics where musical.
-- This must sound like a complete solo guitar arrangement of the hymn.`,
+    const { lyrics, title, artist, level = "basic", mode = "chord" } = await req.json() as {
+      lyrics: string;
+      title: string;
+      artist?: string;
+      level?: Level;
+      mode?: Mode;
     };
 
-    let prompt: string;
-
-    if (mode === "chord") {
-      prompt = `You are an expert classical guitarist and music transcriber.
-
-Generate a fingerpicking tablature pattern for each of these chords used in the hymn "${title}": ${chordList}
-
-The hymn "${title}" by ${artist || "Traditional"} has this melody in its lyrics:
-${pureLyrics.substring(0, 300)}
-
-Difficulty: ${level}
-${levelDescriptions[level] || levelDescriptions.basic}
-
-CRITICAL - MELODY ACCURACY:
-- You MUST know this hymn. "${title}" is a well-known Romanian Christian hymn.
-- The melody notes on the treble strings MUST match the actual sung melody of this hymn for each chord section.
-- Do NOT invent a random melody. Use the real melody.
-- If you don't know the exact melody, use the most common Romanian hymn melodic patterns in the key implied by the chords.
-
-FORMATTING RULES:
-- Standard guitar tab: e, B, G, D, A, E (high to low)
-- Each pattern = 1 measure in 4/4, with bar lines | between beats
-- Numbers = frets, - = rest, h = hammer-on, p = pull-off
-- Chord name on its own line above each pattern
-- ONLY output tablature. No explanations, no markdown code blocks.
-
-Example:
-Am
-e|--0---|--1---|--0---|--0---|
-B|--1---|--1---|--1---|--1---|
-G|--2---|--2---|--2---|--2---|
-D|------|--2---|------|--2---|
-A|--0---|------|--0---|------|
-E|------|------|------|------|`;
-    } else {
-      prompt = `You are an expert fingerstyle guitarist who creates accurate transcriptions of known hymns.
-
-Create a complete fingerstyle guitar tablature for this hymn:
-
-Title: "${title}"
-Artist: ${artist || "Traditional Romanian hymn"}
-Chords used: ${chordList}
-
-Lyrics:
-${pureLyrics}
-
-Difficulty: ${level}
-${levelDescriptions[level] || levelDescriptions.basic}
-
-CRITICAL - THIS IS THE MOST IMPORTANT RULE:
-"${title}" is a known Romanian Christian hymn. You MUST use your knowledge of how this hymn is actually sung.
-- The melody notes on strings 1-2 MUST follow the REAL sung melody, note by note, syllable by syllable.
-- Match the rhythm of the words to the note placement in the tablature.
-- Each syllable of the lyrics corresponds to one melody note placement in the tab.
-- The bass notes must follow the chord progression as written in the lyrics.
-
-SECTION LABELING:
-- Label each section: [Intro], [Verse 1], [Chorus], [Verse 2], etc.
-- Under each label, write the lyrics being played in that section.
-
-FORMATTING RULES:
-- Standard guitar tab: e, B, G, D, A, E (high to low)
-- Bar lines | every 4 beats (4/4 time)
-- Numbers = frets, - = rest, h = hammer-on, p = pull-off, / = slide up, \\ = slide down
-- Output ONLY tablature with section headers and lyrics. No markdown, no explanations.
-
-Example:
-[Verse 1 - "First line of the hymn..."]
-e|--0---1---|--3---1---|--0---0---|--1---0---|
-B|--1---1---|--0---0---|--1---1---|--1---1---|
-G|--0---0---|--0---0---|--2---2---|--0---0---|
-D|--2-------|--0-------|--2-------|--2-------|
-A|--0-------|------2---|--0-------|--3-------|
-E|----------|----------|----------|----------|`;
-    }
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
-        messages: [
-          {
-            role: "system",
-            content: `You are a professional guitar transcriber who specializes in Romanian Christian hymns (imnuri creștine).
-You have deep knowledge of Romanian hymn melodies from collections like Speranța, Boanerges, and Elim Harmony.
-You transcribe the REAL melodies faithfully — the melody must match what is actually sung in churches.
-Output ONLY plain text guitar tablature. Never use markdown code blocks. Never add explanations.`
-          },
-          { role: "user", content: prompt }
-        ],
-        temperature: 0.2,
-      }),
+    const startedAt = Date.now();
+    const chordList = extractOrderedChords(lyrics);
+    const { form, sections } = buildSectionDigest(lyrics);
+    const prompt = buildPrompt({
+      artist,
+      form,
+      level,
+      lyrics,
+      mode,
+      sectionDigest: sections,
+      title,
+      chordList,
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+    try {
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(mode === "full" ? 18000 : 12000),
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            {
+              role: "system",
+              content: `You are a professional guitar transcriber for Romanian Christian hymns.
+Preserve recognizable melody, but keep the output compact.
+Return only plain text guitar tablature.
+Never use markdown code blocks.
+Never repeat identical sections verbatim.`
+            },
+            { role: "user", content: prompt }
+          ],
+          temperature: 0.1,
+          max_tokens: mode === "full" ? 1800 : 900,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const tablature = (data.choices?.[0]?.message?.content?.trim() || "")
+          .replace(/```[a-z]*\n?/g, "")
+          .replace(/```$/g, "")
+          .trim();
+
+        if (tablature) {
+          console.info(`[generate-tablature] AI success in ${Date.now() - startedAt}ms (${mode}/${level})`);
+          return new Response(JSON.stringify({ tablature, source: "ai" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } else {
+        const text = await response.text();
+        console.error("[generate-tablature] AI gateway error:", response.status, text);
       }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required" }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+    } catch (error) {
+      console.error("[generate-tablature] AI request failed:", error);
+      if (!isTimeoutError(error)) {
+        console.warn("[generate-tablature] Falling back after non-timeout AI failure");
       }
-      const text = await response.text();
-      console.error("AI gateway error:", response.status, text);
-      throw new Error("AI gateway error");
     }
 
-    const data = await response.json();
-    let tablature = data.choices?.[0]?.message?.content?.trim() || "";
+    const fallback = buildFallbackTablature(lyrics, mode);
+    console.info(`[generate-tablature] Fallback success in ${Date.now() - startedAt}ms (${mode}/${level})`);
 
-    // Clean markdown artifacts
-    tablature = tablature.replace(/```[a-z]*\n?/g, "").replace(/```$/g, "").trim();
-
-    return new Response(JSON.stringify({ tablature }), {
+    return new Response(JSON.stringify({ tablature: fallback, source: "fallback" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error("[generate-tablature] Fatal error:", error);
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
