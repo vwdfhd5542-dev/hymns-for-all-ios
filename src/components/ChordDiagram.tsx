@@ -211,7 +211,7 @@ function FingerpickingTab({ chord }: { chord: string }) {
   };
 
   const levels: ChordLevel[] = ["basic", "intermediate", "advanced"];
-  const levelLabels: Record<ChordLevel, string> = { basic: "🟢", intermediate: "🟡", advanced: "🔴" };
+  const levelEmojis: Record<ChordLevel, string> = { basic: "🟢", intermediate: "🟡", advanced: "🔴" };
 
   return (
     <div className="space-y-3">
