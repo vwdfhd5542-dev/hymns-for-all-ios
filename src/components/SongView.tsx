@@ -169,7 +169,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
                     {isTranslating ? <Loader2 size={17} className="animate-spin" /> : <Globe size={17} />}
                   </button>
                   {showTranslateMenu && (
-                    <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden z-50 min-w-[160px]">
+                    <div className="absolute right-0 top-full mt-1 bg-card/100 backdrop-blur-none border border-border rounded-xl shadow-lg overflow-hidden z-50 min-w-[160px]" style={{ backgroundColor: 'hsl(var(--card))' }}>
                       {translateLanguages.map((lang) => (
                         <button
                           key={lang}
