@@ -4,8 +4,10 @@ import { useUpdateSong } from "@/hooks/useSongs";
 import { usePitchDetection } from "@/hooks/usePitchDetection";
 import { chordEnrichmentMap } from "@/data/chordDiagrams";
 import { ChordDiagramDialog } from "@/components/ChordDiagram";
-import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Guitar, Mic, MicOff, Sparkles } from "lucide-react";
+import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Mic, MicOff, Sparkles, Globe, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useLanguage, languageNames, languageFlags, Language } from "@/hooks/useLanguage";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SongViewProps {
   song: Song;
@@ -53,14 +55,19 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
   const [editLyrics, setEditLyrics] = useState(song.lyrics);
   const [showComplexChords, setShowComplexChords] = useState(false);
   const [selectedChord, setSelectedChord] = useState<string | null>(null);
+  const [translatedLyrics, setTranslatedLyrics] = useState<string | null>(null);
+  const [translateLang, setTranslateLang] = useState<Language | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [showTranslateMenu, setShowTranslateMenu] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const animRef = useRef<number>();
   const updateSong = useUpdateSong();
   const pitch = usePitchDetection();
+  const { t } = useLanguage();
 
-  const lines = song.lyrics.split("\n");
+  const activeLyrics = translatedLyrics || song.lyrics;
+  const lines = activeLyrics.split("\n");
 
-  // Extract key with minor detection
   const keyMatch = song.lyrics.match(/\[([A-G][#b]?m?)/);
   const songKey = keyMatch ? keyMatch[1] : "?";
   const isMinor = songKey.endsWith("m");
@@ -92,25 +99,51 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
       { id: song.id, lyrics: editLyrics },
       {
         onSuccess: () => {
-          toast.success("Cântarea a fost actualizată!");
+          toast.success(t("song.updated"));
           song.lyrics = editLyrics;
           setIsEditing(false);
         },
-        onError: () => toast.error("Eroare la salvare"),
+        onError: () => toast.error(t("song.saveError")),
       }
     );
   };
 
-  const uniqueChords = [...new Set(song.lyrics.match(/\[([^\]]+)\]/g)?.map(c => c.slice(1, -1)) || [])];
+  const handleTranslate = async (lang: Language) => {
+    setShowTranslateMenu(false);
+    if (lang === "ro") {
+      setTranslatedLyrics(null);
+      setTranslateLang(null);
+      return;
+    }
+    setIsTranslating(true);
+    setTranslateLang(lang);
+    try {
+      const { data, error } = await supabase.functions.invoke("translate-song", {
+        body: { lyrics: song.lyrics, targetLanguage: lang },
+      });
+      if (error) throw error;
+      if (data?.lyrics) {
+        setTranslatedLyrics(data.lyrics);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(t("song.translateError"));
+      setTranslateLang(null);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const translateLanguages: Language[] = ["ro", "es", "en"];
 
   return (
     <div className="flex flex-col h-full">
-      {/* Apple-style header */}
+      {/* Header */}
       <div className="glass fixed top-0 left-0 right-0 z-40 border-b border-border safe-top">
         <div className="flex items-center h-12 px-2 max-w-3xl mx-auto">
           <button onClick={onBack} className="flex items-center gap-0.5 text-primary min-w-[44px] min-h-[44px] justify-center">
             <ChevronLeft size={22} />
-            <span className="text-sm font-medium -ml-1">Înapoi</span>
+            <span className="text-sm font-medium -ml-1">{t("song.back")}</span>
           </button>
 
           <div className="flex-1" />
@@ -129,6 +162,32 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
               </>
             ) : (
               <>
+                {/* Translate button */}
+                <div className="relative">
+                  <button onClick={() => setShowTranslateMenu(v => !v)}
+                    className={`min-w-[40px] min-h-[44px] flex items-center justify-center ${translateLang ? "text-primary" : "text-muted-foreground"}`}>
+                    {isTranslating ? <Loader2 size={17} className="animate-spin" /> : <Globe size={17} />}
+                  </button>
+                  {showTranslateMenu && (
+                    <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden z-50 min-w-[160px]">
+                      {translateLanguages.map((lang) => (
+                        <button
+                          key={lang}
+                          onClick={() => handleTranslate(lang)}
+                          className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm active:bg-muted/50 transition-colors ${
+                            (lang === "ro" && !translateLang) || translateLang === lang ? "bg-primary/10 font-semibold" : ""
+                          }`}
+                        >
+                          <span>{languageFlags[lang]}</span>
+                          <span className="flex-1 text-left">{languageNames[lang]}</span>
+                          {((lang === "ro" && !translateLang) || translateLang === lang) && (
+                            <span className="text-primary text-xs">✓</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button onClick={() => { setIsEditing(true); setEditLyrics(song.lyrics); }}
                   className="min-w-[40px] min-h-[44px] flex items-center justify-center text-muted-foreground">
                   <Edit3 size={17} />
@@ -150,7 +209,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
         {showTools && !isEditing && (
           <div className="border-t border-border px-4 py-3 space-y-3 animate-fade-in">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Transpune</span>
+              <span className="text-xs text-muted-foreground font-medium">{t("song.transpose")}</span>
               <div className="flex items-center gap-2">
                 <button onClick={() => handleTranspose(-1)} className="w-9 h-9 flex items-center justify-center bg-card rounded-lg border border-border">
                   <Minus size={14} />
@@ -165,7 +224,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Mărime text</span>
+              <span className="text-xs text-muted-foreground font-medium">{t("song.fontSize")}</span>
               <div className="flex items-center gap-2">
                 <button onClick={() => setFontSize((s) => Math.max(12, s - 2))} className="w-9 h-9 flex items-center justify-center bg-card rounded-lg border border-border text-xs font-bold">
                   A-
@@ -178,7 +237,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Auto-scroll</span>
+              <span className="text-xs text-muted-foreground font-medium">{t("song.autoScroll")}</span>
               <div className="flex items-center gap-2">
                 <button onClick={() => setAutoScroll((v) => !v)}
                   className={`w-9 h-9 flex items-center justify-center rounded-lg border ${autoScroll ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}>
@@ -193,7 +252,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Acorduri înflorite</span>
+              <span className="text-xs text-muted-foreground font-medium">{t("song.enrichedChords")}</span>
               <button onClick={() => setShowComplexChords((v) => !v)}
                 className={`w-9 h-9 flex items-center justify-center rounded-lg border ${showComplexChords ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}>
                 <Sparkles size={14} />
@@ -207,7 +266,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
       <div ref={scrollRef} className="flex-1 overflow-y-auto pb-8 px-4"
         style={{ paddingTop: showTools && !isEditing ? "20rem" : "7rem" }}>
         <div className="max-w-3xl mx-auto">
-          {/* Song header - Apple style card */}
+          {/* Song header */}
           <div className="mb-6 bg-card rounded-2xl border border-border p-5">
             <div className="flex items-start gap-4">
               <div className="w-14 h-14 rounded-2xl bg-primary/15 flex items-center justify-center shrink-0">
@@ -215,35 +274,36 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="text-xl font-bold leading-tight">{song.title}</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {song.artist}
-                </p>
+                <p className="text-sm text-muted-foreground mt-1">{song.artist}</p>
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
                     {song.collection}
                   </span>
                   <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-                    {isMinor ? "Minor" : "Major"}
+                    {isMinor ? t("song.minor") : t("song.major")}
                   </span>
+                  {translateLang && (
+                    <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                      {languageFlags[translateLang]} {languageNames[translateLang]}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
 
             {transpose !== 0 && (
               <div className="mt-3 inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-medium px-3 py-1 rounded-full">
-                Transpus: {transpose > 0 ? "+" : ""}{transpose} semitonuri
+                {t("song.transposed")}: {transpose > 0 ? "+" : ""}{transpose} {t("song.semitones")}
               </div>
             )}
           </div>
 
-          {/* Inline Pitch Detector */}
+          {/* Pitch Detector */}
           <div className="mb-4">
             <button
               onClick={pitch.isListening ? pitch.stopListening : pitch.startListening}
               className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 transition-all border ${
-                pitch.isListening
-                  ? "bg-primary/10 border-primary/30"
-                  : "bg-card border-border"
+                pitch.isListening ? "bg-primary/10 border-primary/30" : "bg-card border-border"
               }`}
             >
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
@@ -253,14 +313,14 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-semibold">
-                  {pitch.isListening ? "Ascultare live..." : "Detectare ton"}
+                  {pitch.isListening ? t("song.pitchListening") : t("song.pitchDetect")}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {pitch.isListening
                     ? pitch.detectedNote
-                      ? `Nota: ${pitch.detectedNote}`
-                      : "Cântă sau redă melodia..."
-                    : "Apasă pentru a detecta tonul"}
+                      ? `${t("song.pitchNote")}: ${pitch.detectedNote}`
+                      : t("song.pitchSing")
+                    : t("song.pitchTap")}
                 </p>
               </div>
               {pitch.isListening && pitch.detectedKey && (
@@ -281,15 +341,13 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
           {showComplexChords && (
             <div className="mb-4 inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full">
               <Sparkles size={12} />
-              Acorduri înflorite activate
+              {t("song.enrichedActive")}
             </div>
           )}
 
           {isEditing ? (
             <div>
-              <p className="text-xs text-muted-foreground mb-2">
-                Editează versurile. Folosește [Acord] pentru acorduri.
-              </p>
+              <p className="text-xs text-muted-foreground mb-2">{t("song.editHint")}</p>
               <textarea
                 value={editLyrics}
                 onChange={(e) => setEditLyrics(e.target.value)}
@@ -317,7 +375,6 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
                   );
                 }
 
-                // Build chord line with spacing
                 const chordElements: React.ReactNode[] = [];
                 let lastEnd = 0;
                 result.chords.forEach((c, ci) => {
@@ -337,7 +394,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
 
                 return (
                   <div key={i} className="mb-1">
-                    <div className="text-primary font-bold whitespace-pre overflow-x-auto" style={{ fontSize: `${Math.max(11, fontSize - 2)}px`, lineHeight: 1.4 }}>
+                    <div className="text-primary font-bold whitespace-pre overflow-x-auto scrollbar-none" style={{ fontSize: `${Math.max(11, fontSize - 2)}px`, lineHeight: 1.4 }}>
                       {chordElements}
                     </div>
                     <div className="whitespace-pre-wrap break-words leading-relaxed">
