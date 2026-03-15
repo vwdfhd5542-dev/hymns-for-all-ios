@@ -193,10 +193,10 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Acorduri complexe</span>
+              <span className="text-xs text-muted-foreground font-medium">Acorduri înflorite</span>
               <button onClick={() => setShowComplexChords((v) => !v)}
                 className={`w-9 h-9 flex items-center justify-center rounded-lg border ${showComplexChords ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}>
-                <Guitar size={14} />
+                <Sparkles size={14} />
               </button>
             </div>
           </div>
