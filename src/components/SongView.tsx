@@ -183,6 +183,10 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
           <div className="flex items-center gap-0.5">
             {isEditing ? (
               <>
+                <button onClick={handleAiChords} disabled={isGeneratingChords}
+                  className="min-w-[40px] min-h-[44px] flex items-center justify-center text-primary">
+                  {isGeneratingChords ? <Loader2 size={17} className="animate-spin" /> : <Wand2 size={17} />}
+                </button>
                 <button onClick={() => { setIsEditing(false); setEditLyrics(song.lyrics); }}
                   className="min-w-[40px] min-h-[44px] flex items-center justify-center text-muted-foreground">
                   <X size={18} />
