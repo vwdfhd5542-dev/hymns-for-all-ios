@@ -158,6 +158,9 @@ const translations = {
   "tab.play": { ro: "Redare", es: "Reproducir", en: "Play" },
   "tab.stop": { ro: "Oprește", es: "Detener", en: "Stop" },
   "tab.tempo": { ro: "Tempo", es: "Tempo", en: "Tempo" },
+  "tab.level.basic": { ro: "Básic", es: "Básico", en: "Basic" },
+  "tab.level.intermediate": { ro: "Intermediar", es: "Intermedio", en: "Intermediate" },
+  "tab.level.advanced": { ro: "Avansat", es: "Avanzado", en: "Advanced" },
 } as const;
 
 type TranslationKey = keyof typeof translations;
