@@ -152,13 +152,11 @@ export function useTablaturePlayer() {
     await reverb.generate();
     reverbRef.current = reverb;
 
-    const synth = new Tone.PolySynth(Tone.Synth, {
-      maxPolyphony: 12,
+    const synth = new Tone.PolySynth(Tone.Synth).connect(reverb);
+    synth.maxPolyphony = 12;
+    synth.set({
       oscillator: {
         type: "fmtriangle" as any,
-        modulationType: "sine",
-        modulationIndex: 2,
-        harmonicity: 1,
       },
       envelope: {
         attack: 0.005,
@@ -167,7 +165,7 @@ export function useTablaturePlayer() {
         release: 0.6,
       },
       volume: -8,
-    }).connect(reverb);
+    });
     synthRef.current = synth;
 
     // Calculate timing: each column = one 16th-note equivalent
