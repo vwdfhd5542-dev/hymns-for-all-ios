@@ -14,29 +14,7 @@ serve(async (req) => {
   try {
     const { lyrics, title, artist, level, mode } = await req.json();
 
-    const levelDescriptions: Record<string, string> = {
-      basic: `Simple fingerpicking using thumb (p) on bass strings and index-middle (i-m) alternating on treble strings.
-- The melody on treble strings (1,2,3) MUST follow the real hymn melody note by note.
-- Bass notes: root of each chord on beats 1 and 3.
-- Keep a steady 4/4 Travis picking pattern.
-- Use ONLY open position chords and simple fret numbers (0-3).`,
-      intermediate: `Intermediate fingerpicking with thumb-index-middle-ring (p-i-m-a).
-- Treble strings (1,2,3) carry the real melody of the hymn — each note must correspond to the actual pitch of the sung melody.
-- Bass strings (4,5,6): alternating bass with root and 5th on beats 1 and 3.
-- Add occasional hammer-ons (h) and pull-offs (p) for ornamentation.
-- Include some syncopation and passing tones between chord changes.
-- Use bar lines | every 4 beats for readability.`,
-      advanced: `Advanced fingerstyle arrangement in the style of Tommy Emmanuel or Chet Atkins.
-- This MUST be a complete solo guitar arrangement where the melody is clearly audible.
-- Treble strings (1,2,3): play the EXACT melody of the hymn, note for note.
-- Bass strings (4,5,6): independent bass line with the thumb playing root and 5th alternating (Travis picking style) on beats 1 and 3.
-- Middle voices fill in harmonic content on strings 3 and 4.
-- Use hammer-ons (h), pull-offs (p), slides (/,\\), and harmonics where musical.
-- Add an intro (4 bars) and an ending.
-- Use bar lines | every 4 beats. Mark sections clearly.`,
-    };
-
-    // Extract chord info for context
+    // Extract chords from lyrics
     const chordRegex = /\[([^\]]+)\]/g;
     const chords = new Set<string>();
     let match;
@@ -45,71 +23,101 @@ serve(async (req) => {
     }
     const chordList = Array.from(chords).join(", ");
 
+    // Strip chords to get pure lyrics for melody reference
+    const pureLyrics = lyrics.replace(/\[([^\]]+)\]/g, "").trim();
+
+    const levelDescriptions: Record<string, string> = {
+      basic: `Simple fingerpicking: thumb plays root bass note on beats 1 and 3, index and middle alternate on treble strings playing the melody.
+- Use ONLY open position chords (frets 0-3).
+- The melody MUST follow the real sung melody of the hymn — place the correct melody notes on strings 1 and 2.
+- Keep a steady, repetitive pattern per chord. Travis picking style.`,
+      intermediate: `Intermediate fingerpicking with thumb-index-middle-ring (p-i-m-a):
+- Thumb plays alternating bass (root + 5th) on strings 4-6, beats 1 and 3.
+- Fingers play the REAL melody of the hymn on strings 1-3.
+- Add hammer-ons (h) and pull-offs (p) for ornamentation.
+- Include passing tones between chord changes.`,
+      advanced: `Advanced fingerstyle solo guitar arrangement:
+- Strings 1-2: EXACT melody of the hymn, note for note as it is actually sung.
+- Strings 4-6: Independent bass line with alternating bass (root + 5th) Travis picking on beats 1 and 3.
+- Strings 2-3: Harmonic fill between melody and bass.
+- Use hammer-ons (h), pull-offs (p), slides (/,\\), and natural harmonics where musical.
+- This must sound like a complete solo guitar arrangement of the hymn.`,
+    };
+
     let prompt: string;
 
     if (mode === "chord") {
-      prompt = `You are an expert classical/fingerstyle guitarist creating tablature.
+      prompt = `You are an expert classical guitarist and music transcriber.
 
-Generate a fingerpicking pattern for each of these chords: ${chordList}
+Generate a fingerpicking tablature pattern for each of these chords used in the hymn "${title}": ${chordList}
+
+The hymn "${title}" by ${artist || "Traditional"} has this melody in its lyrics:
+${pureLyrics.substring(0, 300)}
 
 Difficulty: ${level}
 ${levelDescriptions[level] || levelDescriptions.basic}
 
-CRITICAL FORMATTING RULES:
-- Standard guitar tab: 6 strings labeled e, B, G, D, A, E (high to low)
-- Each pattern = exactly 1 measure in 4/4 time
-- Use bar lines | to separate beats (4 beats per measure)
-- Numbers = fret numbers, - = rest/sustain, h = hammer-on, p = pull-off
-- Show chord name on its own line above each pattern
-- Return ONLY tablature, zero explanations or markdown
+CRITICAL - MELODY ACCURACY:
+- You MUST know this hymn. "${title}" is a well-known Romanian Christian hymn.
+- The melody notes on the treble strings MUST match the actual sung melody of this hymn for each chord section.
+- Do NOT invent a random melody. Use the real melody.
+- If you don't know the exact melody, use the most common Romanian hymn melodic patterns in the key implied by the chords.
 
-Example format:
+FORMATTING RULES:
+- Standard guitar tab: e, B, G, D, A, E (high to low)
+- Each pattern = 1 measure in 4/4, with bar lines | between beats
+- Numbers = frets, - = rest, h = hammer-on, p = pull-off
+- Chord name on its own line above each pattern
+- ONLY output tablature. No explanations, no markdown code blocks.
+
+Example:
 Am
-e|--0---|--0---|--0---|--0---|
+e|--0---|--1---|--0---|--0---|
 B|--1---|--1---|--1---|--1---|
 G|--2---|--2---|--2---|--2---|
 D|------|--2---|------|--2---|
 A|--0---|------|--0---|------|
 E|------|------|------|------|`;
     } else {
-      prompt = `You are an expert fingerstyle guitarist creating a complete solo guitar arrangement.
+      prompt = `You are an expert fingerstyle guitarist who creates accurate transcriptions of known hymns.
 
-Song: "${title}" by ${artist || "Traditional"}
-Key chords used: ${chordList}
+Create a complete fingerstyle guitar tablature for this hymn:
 
-Lyrics with chords:
-${lyrics}
+Title: "${title}"
+Artist: ${artist || "Traditional Romanian hymn"}
+Chords used: ${chordList}
+
+Lyrics:
+${pureLyrics}
 
 Difficulty: ${level}
 ${levelDescriptions[level] || levelDescriptions.basic}
 
-CRITICAL REQUIREMENTS:
-1. The MELODY on treble strings MUST follow the actual sung melody of this hymn.
-2. Each section must be labeled: [Intro], [Verse 1], [Chorus], etc.
-3. Under each section label, show a snippet of the lyrics being played.
+CRITICAL - THIS IS THE MOST IMPORTANT RULE:
+"${title}" is a known Romanian Christian hymn. You MUST use your knowledge of how this hymn is actually sung.
+- The melody notes on strings 1-2 MUST follow the REAL sung melody, note by note, syllable by syllable.
+- Match the rhythm of the words to the note placement in the tablature.
+- Each syllable of the lyrics corresponds to one melody note placement in the tab.
+- The bass notes must follow the chord progression as written in the lyrics.
 
-CRITICAL FORMATTING RULES:
-- Standard guitar tab: 6 strings labeled e, B, G, D, A, E (high to low)
-- Use bar lines | every 4 beats (4/4 time)
-- Numbers = fret numbers, - = rest, h = hammer-on, p = pull-off, / = slide up, \\ = slide down
-- Return ONLY tablature with section headers, zero explanations or markdown code blocks
+SECTION LABELING:
+- Label each section: [Intro], [Verse 1], [Chorus], [Verse 2], etc.
+- Under each label, write the lyrics being played in that section.
 
-Example format:
-[Intro]
-e|--0---0---|--1---0---|
-B|--1---1---|--1---1---|
-G|--0---0---|--2---0---|
-D|--2-------|--3-------|
-A|--0-------|------0---|
-E|------0---|----------|
+FORMATTING RULES:
+- Standard guitar tab: e, B, G, D, A, E (high to low)
+- Bar lines | every 4 beats (4/4 time)
+- Numbers = frets, - = rest, h = hammer-on, p = pull-off, / = slide up, \\ = slide down
+- Output ONLY tablature with section headers and lyrics. No markdown, no explanations.
 
-[Verse 1 - "First line of lyrics..."]
-e|--0---0---|--2---2---|
-B|--1---1---|--3---3---|
-G|--0---0---|--2---2---|
-D|--2-------|--0-------|
-A|--0-------|----------|
-E|----------|----------|`;
+Example:
+[Verse 1 - "First line of the hymn..."]
+e|--0---1---|--3---1---|--0---0---|--1---0---|
+B|--1---1---|--0---0---|--1---1---|--1---1---|
+G|--0---0---|--0---0---|--2---2---|--0---0---|
+D|--2-------|--0-------|--2-------|--2-------|
+A|--0-------|------2---|--0-------|--3-------|
+E|----------|----------|----------|----------|`;
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -119,15 +127,18 @@ E|----------|----------|`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           {
             role: "system",
-            content: "You are a professional guitar transcriber. Output ONLY guitar tablature in plain text. Never use markdown code blocks. Never add explanations. The melody must be musically accurate to the real hymn."
+            content: `You are a professional guitar transcriber who specializes in Romanian Christian hymns (imnuri creștine).
+You have deep knowledge of Romanian hymn melodies from collections like Speranța, Boanerges, and Elim Harmony.
+You transcribe the REAL melodies faithfully — the melody must match what is actually sung in churches.
+Output ONLY plain text guitar tablature. Never use markdown code blocks. Never add explanations.`
           },
           { role: "user", content: prompt }
         ],
-        temperature: 0.3,
+        temperature: 0.2,
       }),
     });
 
@@ -142,15 +153,15 @@ E|----------|----------|`;
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
+      const text = await response.text();
+      console.error("AI gateway error:", response.status, text);
       throw new Error("AI gateway error");
     }
 
     const data = await response.json();
     let tablature = data.choices?.[0]?.message?.content?.trim() || "";
-    
-    // Clean up: remove markdown code blocks if present
+
+    // Clean markdown artifacts
     tablature = tablature.replace(/```[a-z]*\n?/g, "").replace(/```$/g, "").trim();
 
     return new Response(JSON.stringify({ tablature }), {
