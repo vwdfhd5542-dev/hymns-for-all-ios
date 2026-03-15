@@ -62,9 +62,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
   const scrollRef = useRef<HTMLDivElement>(null);
   const animRef = useRef<number>();
   const [isGeneratingChords, setIsGeneratingChords] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const updateSong = useUpdateSong();
-  const deleteSong = useDeleteSong();
   const pitch = usePitchDetection();
   const { t } = useLanguage();
 
