@@ -337,7 +337,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
 
                 return (
                   <div key={i} className="mb-1">
-                    <div className="text-primary font-bold whitespace-pre" style={{ fontSize: `${Math.max(11, fontSize - 2)}px`, lineHeight: 1.4 }}>
+                    <div className="text-primary font-bold whitespace-pre overflow-x-auto" style={{ fontSize: `${Math.max(11, fontSize - 2)}px`, lineHeight: 1.4 }}>
                       {chordElements}
                     </div>
                     <div className="whitespace-pre-wrap break-words leading-relaxed">

@@ -62,8 +62,8 @@ export function SettingsView() {
                 <p className="text-[11px] text-muted-foreground">Design translucid tip Apple</p>
               </div>
             </div>
-            <div className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors ${glassEnabled ? "bg-primary" : "bg-muted"}`}>
-              <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${glassEnabled ? "translate-x-5" : "translate-x-0"}`} />
+            <div className={`w-12 h-7 rounded-full flex items-center shrink-0 px-1 transition-colors ${glassEnabled ? "bg-primary" : "bg-muted"}`}>
+              <div className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform ${glassEnabled ? "translate-x-5" : "translate-x-0"}`} />
             </div>
           </button>
         </div>
