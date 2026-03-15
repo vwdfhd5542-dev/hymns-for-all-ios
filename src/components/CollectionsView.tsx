@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, Trash2, ChevronRight, FolderOpen, X } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Trash2, ChevronRight, FolderOpen, X, Music } from "lucide-react";
 import { useCollections, useAddCollection, useDeleteCollection, useCollectionSongs, useAddSongToCollection, useRemoveSongFromCollection } from "@/hooks/useCollections";
 import { useSongs } from "@/hooks/useSongs";
 import { Song } from "@/data/songs";
@@ -22,6 +22,17 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
   const addSongToCol = useAddSongToCollection();
   const removeSongFromCol = useRemoveSongFromCollection();
 
+  // Auto-collections from song.collection field
+  const autoCollections = useMemo(() => {
+    const map = new Map<string, Song[]>();
+    songs.forEach(s => {
+      const list = map.get(s.collection) || [];
+      list.push(s);
+      map.set(s.collection, list);
+    });
+    return Array.from(map.entries()).map(([name, songsList]) => ({ name, songs: songsList }));
+  }, [songs]);
+
   const handleCreate = () => {
     if (!newName.trim()) return;
     addCollection.mutate({ name: newName.trim() }, {
@@ -32,6 +43,7 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
   const selectedCollection = collections.find(c => c.id === selectedCol);
   const collectionSongs = songs.filter(s => songIds.includes(s.id));
 
+  // Detail view for custom collection
   if (selectedCol && selectedCollection) {
     return (
       <div className="flex flex-col h-full">
@@ -95,6 +107,38 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
     );
   }
 
+  // Detail view for auto-collection (from song.collection field)
+  const [selectedAuto, setSelectedAuto] = useState<string | null>(null);
+  const autoCol = autoCollections.find(c => c.name === selectedAuto);
+
+  if (selectedAuto && autoCol) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="px-4 safe-top pb-3">
+          <div className="flex items-center gap-3 pt-4">
+            <button onClick={() => setSelectedAuto(null)} className="text-primary">
+              <ChevronRight size={20} className="rotate-180" />
+            </button>
+            <h1 className="text-2xl font-bold tracking-tight flex-1">{autoCol.name}</h1>
+            <span className="text-sm text-muted-foreground">{autoCol.songs.length} cântări</span>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto pb-24 px-4 space-y-2 pt-2">
+          {autoCol.songs.map(song => (
+            <button
+              key={song.id}
+              onClick={() => onSongSelect(song)}
+              className="w-full text-left rounded-xl bg-card border border-border p-3 active:scale-[0.98] transition-all"
+            >
+              <p className="font-semibold text-sm truncate">{song.title}</p>
+              <p className="text-[11px] text-muted-foreground">{song.artist}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="px-4 safe-top pb-3">
@@ -132,13 +176,38 @@ export function CollectionsView({ onSongSelect }: CollectionsViewProps) {
       )}
 
       <div className="flex-1 overflow-y-auto pb-24 px-4 space-y-3">
+        {/* Auto-collections from song data */}
+        <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider pt-2">Colecții de cântări</p>
+        {autoCollections.map(col => (
+          <button
+            key={col.name}
+            onClick={() => setSelectedAuto(col.name)}
+            className="w-full text-left rounded-xl bg-card border border-border p-4 active:scale-[0.98] transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center">
+                <Music size={18} className="text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-sm">{col.name}</p>
+                <p className="text-[11px] text-muted-foreground">{col.songs.length} cântări</p>
+              </div>
+              <ChevronRight size={16} className="text-muted-foreground" />
+            </div>
+          </button>
+        ))}
+
+        {/* Custom collections */}
+        {(collections.length > 0 || !isLoading) && (
+          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider pt-4">Colecții personalizate</p>
+        )}
         {isLoading && (
-          <div className="flex items-center justify-center py-20">
+          <div className="flex items-center justify-center py-10">
             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         )}
         {!isLoading && collections.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-20">Nicio colecție încă. Creează una!</p>
+          <p className="text-sm text-muted-foreground text-center py-6">Nicio colecție personalizată. Creează una!</p>
         )}
         {collections.map(col => (
           <div key={col.id} className="flex items-center gap-2">
