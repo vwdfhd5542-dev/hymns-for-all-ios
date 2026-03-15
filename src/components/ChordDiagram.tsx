@@ -2,7 +2,10 @@ import { useState } from "react";
 import { chordDiagrams, ChordDiagramData } from "@/data/chordDiagrams";
 import { pianoChords, PianoChordData } from "@/data/pianoChords";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Guitar, Piano } from "lucide-react";
+import { Guitar, Piano, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useLanguage } from "@/hooks/useLanguage";
+import { toast } from "sonner";
 
 interface ChordDiagramProps {
   chord: string | null;
@@ -28,7 +31,6 @@ function GuitarDiagram({ data }: { data: ChordDiagramData }) {
 
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full max-w-[220px] mx-auto" aria-label={`Chord diagram for ${data.name}`}>
-      {/* Nut or fret number */}
       {isOpenPosition ? (
         <rect x={padLeft - 2} y={padTop - 3} width={strW * (numStrings - 1) + 4} height={5}
           rx={2} className="fill-foreground" />
@@ -39,7 +41,6 @@ function GuitarDiagram({ data }: { data: ChordDiagramData }) {
         </text>
       )}
 
-      {/* Fret lines */}
       {Array.from({ length: numFrets + 1 }).map((_, i) => (
         <line key={`fret-${i}`}
           x1={padLeft} y1={padTop + i * fretH}
@@ -47,7 +48,6 @@ function GuitarDiagram({ data }: { data: ChordDiagramData }) {
           className="stroke-border" strokeWidth={1.5} />
       ))}
 
-      {/* String lines */}
       {Array.from({ length: numStrings }).map((_, i) => (
         <line key={`str-${i}`}
           x1={padLeft + i * strW} y1={padTop}
@@ -55,7 +55,6 @@ function GuitarDiagram({ data }: { data: ChordDiagramData }) {
           className="stroke-muted-foreground/50" strokeWidth={1.2} />
       ))}
 
-      {/* Barres */}
       {data.barres?.map((barre, bi) => {
         const fretPos = barre.fret - baseFret + 1;
         if (fretPos < 1 || fretPos > numFrets) return null;
@@ -75,7 +74,6 @@ function GuitarDiagram({ data }: { data: ChordDiagramData }) {
         );
       })}
 
-      {/* Finger dots with numbers */}
       {data.frets.map((fret, i) => {
         const x = padLeft + i * strW;
         if (fret === -1) {
@@ -113,7 +111,6 @@ function GuitarDiagram({ data }: { data: ChordDiagramData }) {
         );
       })}
 
-      {/* String labels */}
       {["E", "A", "D", "G", "B", "e"].map((s, i) => (
         <text key={`lbl-${i}`} x={padLeft + i * strW} y={h - 6}
           className="fill-muted-foreground text-[9px]" textAnchor="middle">
@@ -138,7 +135,6 @@ function PianoDiagram({ data }: { data: PianoChordData }) {
 
   return (
     <svg viewBox={`0 0 ${totalW + 4} ${whiteH + padTop + 20}`} className="w-full max-w-[220px] mx-auto">
-      {/* White keys */}
       {whiteKeys.map((key, i) => {
         const x = 2 + i * whiteW;
         const isActive = noteSet.has(key);
@@ -158,7 +154,6 @@ function PianoDiagram({ data }: { data: PianoChordData }) {
         );
       })}
 
-      {/* Black keys */}
       {Object.entries(blackKeys).map(([key, idx]) => {
         const x = 2 + (idx + 1) * whiteW - blackW / 2;
         const isActive = noteSet.has(key);
@@ -178,7 +173,6 @@ function PianoDiagram({ data }: { data: PianoChordData }) {
         );
       })}
 
-      {/* Chord name */}
       <text x={totalW / 2 + 2} y={whiteH + padTop + 14}
         className="fill-muted-foreground text-[10px]" textAnchor="middle">
         {data.notes.join(" – ")}
@@ -187,8 +181,79 @@ function PianoDiagram({ data }: { data: PianoChordData }) {
   );
 }
 
+type ChordLevel = "basic" | "intermediate" | "advanced";
+
+function FingerpickingTab({ chord }: { chord: string }) {
+  const { t } = useLanguage();
+  const [tab, setTab] = useState<Record<ChordLevel, string>>({} as any);
+  const [level, setLevel] = useState<ChordLevel>("basic");
+  const [loading, setLoading] = useState(false);
+
+  const currentTab = tab[level];
+
+  const generate = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-tablature", {
+        body: { lyrics: `[${chord}]`, title: "", artist: "", level, mode: "chord" },
+      });
+      if (error) throw error;
+      if (data?.tablature) {
+        setTab(prev => ({ ...prev, [level]: data.tablature }));
+      }
+    } catch {
+      toast.error(t("tab.error"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const levels: ChordLevel[] = ["basic", "intermediate", "advanced"];
+  const levelLabels: Record<ChordLevel, string> = { basic: "🟢", intermediate: "🟡", advanced: "🔴" };
+
+  return (
+    <div className="space-y-3">
+      {/* Level pills */}
+      <div className="flex gap-1 justify-center">
+        {levels.map(l => (
+          <button
+            key={l}
+            onClick={() => setLevel(l)}
+            className={`px-3 py-1 text-[11px] font-medium rounded-full border transition-all ${
+              level === l ? "bg-primary/15 text-primary border-primary/30" : "bg-muted border-border text-muted-foreground"
+            }`}
+          >
+            {levelLabels[l]} {l.charAt(0).toUpperCase() + l.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {currentTab ? (
+        <div className="overflow-x-auto rounded-lg bg-muted/50 p-3">
+          <pre className="font-mono text-[10px] leading-[1.5] text-foreground whitespace-pre">
+            {currentTab}
+          </pre>
+        </div>
+      ) : (
+        <button
+          onClick={generate}
+          disabled={loading}
+          className="w-full py-3 rounded-xl bg-primary/10 text-primary font-semibold text-xs flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition-all"
+        >
+          {loading ? (
+            <><Loader2 size={14} className="animate-spin" /> {t("tab.generating")}</>
+          ) : (
+            <><Guitar size={14} /> {t("tab.generateForChord")}</>
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function ChordDiagramDialog({ chord, open, onClose }: ChordDiagramProps) {
-  const [view, setView] = useState<"guitar" | "piano">("guitar");
+  const [view, setView] = useState<"guitar" | "piano" | "fingerpicking">("guitar");
+  const { t } = useLanguage();
 
   if (!chord) return null;
 
@@ -197,32 +262,42 @@ export function ChordDiagramDialog({ chord, open, onClose }: ChordDiagramProps) 
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-[280px] rounded-2xl p-5">
+      <DialogContent className="max-w-[320px] rounded-2xl p-5">
         <DialogHeader>
           <DialogTitle className="text-center text-2xl font-bold text-primary">
             {chord}
           </DialogTitle>
         </DialogHeader>
 
-        {/* Toggle guitar/piano */}
+        {/* Toggle guitar/piano/fingerpicking */}
         <div className="flex justify-center gap-1 bg-muted rounded-lg p-1">
           <button
             onClick={() => setView("guitar")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-medium transition-all ${
               view === "guitar" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
             }`}
           >
-            <Guitar size={14} />
+            <Guitar size={13} />
             Chitară
           </button>
           <button
             onClick={() => setView("piano")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-medium transition-all ${
               view === "piano" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
             }`}
           >
-            <Piano size={14} />
+            <Piano size={13} />
             Pian
+          </button>
+          <button
+            onClick={() => setView("fingerpicking")}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-medium transition-all ${
+              view === "fingerpicking" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+            }`}
+          >
+            🎵
+            <span className="hidden min-[300px]:inline">{t("tab.fingerpicking")}</span>
+            <span className="min-[300px]:hidden">Tab</span>
           </button>
         </div>
 
@@ -236,7 +311,7 @@ export function ChordDiagramDialog({ chord, open, onClose }: ChordDiagramProps) 
               </p>
             </div>
           )
-        ) : (
+        ) : view === "piano" ? (
           pianoData ? (
             <PianoDiagram data={pianoData} />
           ) : (
@@ -246,6 +321,8 @@ export function ChordDiagramDialog({ chord, open, onClose }: ChordDiagramProps) 
               </p>
             </div>
           )
+        ) : (
+          <FingerpickingTab chord={chord} />
         )}
       </DialogContent>
     </Dialog>
