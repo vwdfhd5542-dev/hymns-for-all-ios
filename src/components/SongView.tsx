@@ -171,10 +171,6 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
           <div className="flex items-center gap-0.5">
             {isEditing ? (
               <>
-                <button onClick={handleAiChords} disabled={isGeneratingChords}
-                  className="min-w-[40px] min-h-[44px] flex items-center justify-center text-primary">
-                  {isGeneratingChords ? <Loader2 size={17} className="animate-spin" /> : <Wand2 size={17} />}
-                </button>
                 <button onClick={() => { setIsEditing(false); setEditLyrics(song.lyrics); }}
                   className="min-w-[40px] min-h-[44px] flex items-center justify-center text-muted-foreground">
                   <X size={18} />
@@ -215,10 +211,6 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
                 <button onClick={() => { setIsEditing(true); setEditLyrics(song.lyrics); }}
                   className="min-w-[40px] min-h-[44px] flex items-center justify-center text-muted-foreground">
                   <Edit3 size={17} />
-                </button>
-                <button onClick={() => setShowDeleteConfirm(true)}
-                  className="min-w-[40px] min-h-[44px] flex items-center justify-center text-destructive">
-                  <Trash2 size={17} />
                 </button>
                 <button onClick={() => setShowTools((v) => !v)}
                   className={`min-w-[40px] min-h-[44px] flex items-center justify-center ${showTools ? "text-primary" : "text-muted-foreground"}`}>
