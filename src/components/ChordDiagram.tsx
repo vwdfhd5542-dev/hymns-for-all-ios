@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Guitar, Piano, Loader2, Play, Square } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/hooks/useLanguage";
+import { useTablaturePlayer } from "@/hooks/useTablaturePlayer";
 import { toast } from "sonner";
 
 interface ChordDiagramProps {
