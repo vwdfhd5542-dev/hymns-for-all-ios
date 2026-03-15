@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { useLanguage, Language, languageNames, languageFlags } from "@/hooks/useLanguage";
 
-export function SettingsView() {
+const { user, signOut } = useAuth();
   const { mode, glassEnabled, toggleMode, toggleGlass } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const [showFeatures, setShowFeatures] = useState(false);
