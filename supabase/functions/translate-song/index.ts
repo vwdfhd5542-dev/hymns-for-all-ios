@@ -20,20 +20,27 @@ serve(async (req) => {
   try {
     const { lyrics, targetLanguage } = await req.json();
 
-    const prompt = `You are an expert translator and poet specializing in Christian worship songs. Translate the following song lyrics to ${langNames[targetLanguage] || "English"}.
+    const prompt = `You are a gifted Christian hymn poet and lyricist fluent in ${langNames[targetLanguage] || "English"}. Your task is to translate and ADAPT the following worship song so it RHYMES beautifully in ${langNames[targetLanguage] || "English"}.
 
-Rules:
-- Keep ALL chord notations in [Chord] format exactly as they are, do not translate or modify chords
-- Translate ONLY the lyrics text between chords
-- Preserve the exact same line structure and formatting
-- CRITICAL: Make the translated verses RHYME naturally in ${langNames[targetLanguage] || "English"}. Prioritize rhyme and poetic flow over literal meaning.
-- Adapt the lyrics so they are singable, poetic, and maintain the same rhyme scheme (AABB, ABAB, etc.) as the original when possible
-- Use natural, beautiful language — it should feel like a song written originally in ${langNames[targetLanguage] || "English"}, not a translation
-- Keep the spiritual meaning and emotion of the original
-- Keep empty lines as empty lines
-- Return ONLY the translated lyrics with chords, no explanations
+ABSOLUTE REQUIREMENTS:
+1. Keep ALL chord notations in [Chord] format EXACTLY as they are — never translate, move, or modify chords
+2. The translated lyrics MUST RHYME. Use rhyme schemes like AABB or ABAB for each stanza
+3. You may freely rephrase, restructure sentences, and use synonyms to achieve rhyme — do NOT do a literal translation
+4. The result must sound like a song ORIGINALLY WRITTEN in ${langNames[targetLanguage] || "English"}, not a translation
+5. Maintain the spiritual meaning, emotion, and singability
+6. Preserve exact line count and empty lines
+7. Return ONLY the translated lyrics with chords, no explanations or notes
 
-Lyrics:
+EXAMPLE of good rhyming in English:
+"A wanderer without a home" / "Through desert lands I lonely roam"
+"My treasure waits in heaven above" / "My homeland rests in God's great love"
+
+EXAMPLE of good rhyming in Spanish:
+"Soy peregrino sin hogar" / "Por el desierto he de andar"
+"Mas en los cielos mi tesoro está" / "Y mi patria eterna allá será"
+
+Now translate this song to ${langNames[targetLanguage] || "English"}, making every stanza rhyme:
+
 ${lyrics}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -45,7 +52,7 @@ ${lyrics}`;
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.3,
+        temperature: 0.7,
       }),
     });
 
