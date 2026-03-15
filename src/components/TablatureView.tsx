@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { ChevronLeft, Loader2, Guitar, Play, Square } from "lucide-react";
 import { Song } from "@/data/songs";
 import { supabase } from "@/integrations/supabase/client";
@@ -150,13 +150,14 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
               <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
                 <button
                   onClick={() => player.isPlaying ? player.stop() : player.play(currentTab, bpm)}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+                  disabled={player.isLoading}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-50 ${
                     player.isPlaying
                       ? "bg-destructive text-destructive-foreground"
                       : "bg-primary text-primary-foreground"
                   }`}
                 >
-                  {player.isPlaying ? <Square size={14} /> : <Play size={16} className="ml-0.5" />}
+                  {player.isLoading ? <Loader2 size={14} className="animate-spin" /> : player.isPlaying ? <Square size={14} /> : <Play size={16} className="ml-0.5" />}
                 </button>
 
                 {/* Progress bar */}
