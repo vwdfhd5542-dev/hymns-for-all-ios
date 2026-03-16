@@ -211,6 +211,11 @@ export function useTablaturePlayer() {
 
   const stop = useCallback(() => {
     cleanup();
+    // Close the AudioContext to immediately stop all audio
+    if (sharedCtx && sharedCtx.state !== "closed") {
+      sharedCtx.close().catch(() => {});
+      sharedCtx = null;
+    }
     setIsPlaying(false);
     setProgress(0);
     setCurrentColumn(-1);

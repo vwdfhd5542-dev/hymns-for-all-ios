@@ -162,6 +162,11 @@ export function TablatureView({ song, onBack }: TablatureViewProps) {
           {/* Tablature display with player controls */}
           {currentTab && (
             <div className="bg-card rounded-2xl border border-border overflow-hidden mb-4">
+              {/* Beta warning */}
+              <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-500/15 px-1.5 py-0.5 rounded">Beta</span>
+                <span className="text-[11px] text-amber-600/80">{t("tab.betaWarning" as any) || "Audio playback is experimental and may not work correctly."}</span>
+              </div>
               {/* Player + Transpose controls */}
               <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
                 <button
