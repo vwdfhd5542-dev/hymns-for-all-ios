@@ -112,22 +112,13 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
     );
   };
 
-  const handleAiChords = async () => {
-    setIsGeneratingChords(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("auto-chords", {
-        body: { title: song.title, artist: song.artist, lyrics: editLyrics },
-      });
-      if (error) throw error;
-      if (data?.lyrics) {
-        setEditLyrics(data.lyrics);
-        toast.success(t("addSong.chordsAdded"));
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error(t("addSong.chordsError"));
-    } finally {
-      setIsGeneratingChords(false);
+  const handleAiChords = () => {
+    const result = generateChords(song.title, song.artist, editLyrics);
+    if (result !== editLyrics && result.includes("[")) {
+      setEditLyrics(result);
+      toast.success(t("addSong.chordsAdded"));
+    } else {
+      toast.info("Los acordes ya están presentes en la letra.");
     }
   };
 
