@@ -43,7 +43,7 @@ Artist: ${artist || "Unknown"}
 
 ${lyrics}`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${GEMINI_KEY}`;
 
     const response = await fetch(url, {
       method: "POST",
