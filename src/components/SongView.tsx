@@ -118,7 +118,7 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
       setEditLyrics(result);
       toast.success(t("addSong.chordsAdded"));
     } else {
-      toast.info("Los acordes ya están presentes en la letra.");
+      toast.info("Los acordes ya están presentes.");
     }
   };
 

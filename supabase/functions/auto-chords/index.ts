@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
@@ -13,6 +13,11 @@ serve(async (req) => {
 
   try {
     const { title, artist, lyrics } = await req.json();
+
+    const GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_API_KEY");
+    if (!GEMINI_KEY) {
+      throw new Error("GOOGLE_GEMINI_API_KEY is not configured");
+    }
 
     const prompt = `You are an expert musician. Your task: add guitar chords to the following song lyrics.
 
@@ -38,48 +43,38 @@ Artist: ${artist || "Unknown"}
 
 ${lyrics}`;
 
-    console.log("Calling AI with prompt length:", prompt.length);
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${GEMINI_KEY}`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: "You are a chord annotation assistant. You ONLY output lyrics with [Chord] markers inserted. Never output explanations or markdown." },
-          { role: "user", content: prompt }
-        ],
-        temperature: 0.4,
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.3 },
       }),
     });
 
     const rawText = await response.text();
-    console.log("AI raw response status:", response.status);
-    console.log("AI raw response body:", rawText.substring(0, 500));
-    
-    let data;
-    try {
-      data = JSON.parse(rawText);
-    } catch (parseErr) {
-      console.error("Failed to parse AI response:", parseErr);
-      throw new Error("AI response was not valid JSON: " + rawText.substring(0, 200));
+    console.log("Gemini status:", response.status);
+
+    if (!response.ok) {
+      console.error("Gemini error:", rawText.substring(0, 500));
+      throw new Error(`Gemini API error: ${response.status}`);
     }
-    
-    if (!data.choices || !data.choices[0]?.message?.content) {
-      console.error("AI returned no content. Full response:", rawText.substring(0, 500));
-      throw new Error("AI did not return chord annotations");
+
+    const data = JSON.parse(rawText);
+    let chordsLyrics = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+    if (!chordsLyrics) {
+      console.error("No content in Gemini response:", rawText.substring(0, 500));
+      throw new Error("Gemini did not return content");
     }
-    
-    let chordsLyrics = data.choices[0].message.content.trim();
-    
-    // Strip markdown code blocks if the model wrapped the output
+
+    // Strip markdown code blocks if wrapped
     chordsLyrics = chordsLyrics.replace(/^```[^\n]*\n?/, "").replace(/\n?```$/, "").trim();
-    
+
     if (!chordsLyrics.includes("[")) {
-      console.warn("AI response contained no chord brackets");
+      console.warn("Response has no chord brackets");
       throw new Error("NO_CHORDS_GENERATED");
     }
 
