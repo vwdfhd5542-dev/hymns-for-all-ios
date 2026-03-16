@@ -9,7 +9,6 @@ import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Mi
 import { toast } from "sonner";
 import { useLanguage, languageNames, languageFlags, Language } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
-import { supabase } from "@/integrations/supabase/client";
 
 interface SongViewProps {
   song: Song;
