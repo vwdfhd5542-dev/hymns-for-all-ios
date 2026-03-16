@@ -56,9 +56,11 @@ export function AddSongForm({ onClose }: AddSongFormProps) {
         body: { title: title.trim(), artist: artist.trim(), lyrics: lyrics.trim() },
       });
       if (error) throw error;
-      if (data?.lyrics) {
+      if (data?.lyrics && data.lyrics.includes("[")) {
         setLyrics(data.lyrics);
         toast.success(t("addSong.chordsAdded"));
+      } else {
+        toast.error(t("addSong.chordsError"));
       }
     } catch (err) {
       console.error(err);
