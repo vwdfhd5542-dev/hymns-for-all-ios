@@ -56,14 +56,32 @@ ${lyrics}`;
       }),
     });
 
-    const data = await response.json();
-    console.log("AI response status:", response.status);
-    console.log("AI response content preview:", JSON.stringify(data.choices?.[0]?.message?.content?.substring(0, 200)));
+    const rawText = await response.text();
+    console.log("AI raw response status:", response.status);
+    console.log("AI raw response body:", rawText.substring(0, 500));
     
-    let chordsLyrics = data.choices?.[0]?.message?.content?.trim() || lyrics;
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch (parseErr) {
+      console.error("Failed to parse AI response:", parseErr);
+      throw new Error("AI response was not valid JSON: " + rawText.substring(0, 200));
+    }
+    
+    if (!data.choices || !data.choices[0]?.message?.content) {
+      console.error("AI returned no content. Full response:", rawText.substring(0, 500));
+      throw new Error("AI did not return chord annotations");
+    }
+    
+    let chordsLyrics = data.choices[0].message.content.trim();
     
     // Strip markdown code blocks if the model wrapped the output
     chordsLyrics = chordsLyrics.replace(/^```[^\n]*\n?/, "").replace(/\n?```$/, "").trim();
+    
+    // Verify chords were actually added
+    if (!chordsLyrics.includes("[")) {
+      console.warn("AI response contained no chord brackets, retrying would be needed");
+    }
 
     return new Response(JSON.stringify({ lyrics: chordsLyrics }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
