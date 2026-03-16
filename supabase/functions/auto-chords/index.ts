@@ -78,9 +78,9 @@ ${lyrics}`;
     // Strip markdown code blocks if the model wrapped the output
     chordsLyrics = chordsLyrics.replace(/^```[^\n]*\n?/, "").replace(/\n?```$/, "").trim();
     
-    // Verify chords were actually added
     if (!chordsLyrics.includes("[")) {
-      console.warn("AI response contained no chord brackets, retrying would be needed");
+      console.warn("AI response contained no chord brackets");
+      throw new Error("NO_CHORDS_GENERATED");
     }
 
     return new Response(JSON.stringify({ lyrics: chordsLyrics }), {
