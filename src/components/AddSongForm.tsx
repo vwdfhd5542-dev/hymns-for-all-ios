@@ -45,28 +45,17 @@ export function AddSongForm({ onClose }: AddSongFormProps) {
     });
   };
 
-  const handleAutoChords = async () => {
+  const handleAutoChords = () => {
     if (!lyrics.trim()) {
       toast.error(t("addSong.lyricsRequired"));
       return;
     }
-    setIsGenerating(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("auto-chords", {
-        body: { title: title.trim(), artist: artist.trim(), lyrics: lyrics.trim() },
-      });
-      if (error) throw error;
-      if (data?.lyrics && data.lyrics.includes("[")) {
-        setLyrics(data.lyrics);
-        toast.success(t("addSong.chordsAdded"));
-      } else {
-        toast.error(t("addSong.chordsError"));
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error(t("addSong.chordsError"));
-    } finally {
-      setIsGenerating(false);
+    const result = generateChords(title.trim() || "Song", artist.trim() || "Unknown", lyrics.trim());
+    if (result !== lyrics.trim() && result.includes("[")) {
+      setLyrics(result);
+      toast.success(t("addSong.chordsAdded"));
+    } else {
+      toast.info("Los acordes ya están presentes en la letra.");
     }
   };
 
