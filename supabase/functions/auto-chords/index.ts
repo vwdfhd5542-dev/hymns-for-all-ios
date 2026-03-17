@@ -19,42 +19,43 @@ serve(async (req) => {
       throw new Error("GOOGLE_GEMINI_API_KEY is not configured");
     }
 
+    // CRITICAL: Strip any existing chord markers so Gemini generates fresh chords
+    const cleanLyrics = lyrics.replace(/\[[^\]]*\]/g, "").trim();
+
     const prompt = `You are an expert musician specializing in Romanian Christian hymns (imnuri creștine). Your task: add the REAL, accurate guitar chords to the following song lyrics.
 
 CRITICAL INSTRUCTIONS — FOLLOW IN ORDER:
 
-STEP 1 — MANDATORY RESEARCH:
-Before generating ANY chords, you MUST recall or search your training data for the REAL chord progression of this specific song. Check your knowledge of:
-- "Resurse Creștine" (resurse-crestine.ro) chord charts
-- Popular YouTube performances and tutorials of this exact hymn
-- Romanian Christian songbooks: Speranța, Boanerges, Eldad, Elim Harmony
-- Any known published chord sheet for "${title}" by "${artist || "Unknown"}"
-If you have seen this song's chords in your training data, USE THOSE EXACT CHORDS. Do not simplify or substitute them.
+STEP 1 — USE GOOGLE SEARCH:
+You have access to Google Search. BEFORE generating any chords, you MUST search for the real chords of this song.
+Search queries to try (in this order):
+1. "${title}" "${artist || ""}" acorduri chitară
+2. "${title}" acorduri resurse-crestine.ro
+3. "${title}" guitar chords Romanian hymn
+4. "${title}" acorduri
+
+Analyze the search results carefully. If you find chord charts from sites like resurse-crestine.ro, acorduri.cantari.ro, or any Romanian Christian music site, USE THOSE EXACT CHORDS.
 
 STEP 2 — PRIORITIZE THE REAL VERSION:
-- If the song is known to use specific chords (e.g., E7, Am, D7, G#m, Cmaj7), you MUST use them exactly as they appear in the real version.
+- If the search results show specific chords (e.g., E7, Am, D7, G#m, Cmaj7), you MUST use them exactly as they appear.
 - Do NOT replace rich chords with simplified versions. If the original uses E7, do NOT replace it with E. If it uses Am7, keep Am7.
 - The harmonic richness of the original arrangement must be preserved: dominant 7ths, minor 7ths, diminished, augmented — whatever the real song uses.
-- Example: "Dac-asculți de Dumnezeu" uses G → E → Am progression. If you know this, use it exactly.
+- Pay special attention to chord PLACEMENT — the chord must go exactly where the harmony changes, not just at the beginning of each line.
 
-STEP 3 — ONLY IF UNKNOWN:
-If and ONLY if you have absolutely no knowledge of this specific song's chords, then analyze the melody and lyrics to deduce an appropriate progression that fits the style of Romanian Christian worship music. Even in this case, use musically rich chords — not just major triads.
+STEP 3 — ONLY IF NOT FOUND ONLINE:
+If and ONLY if you cannot find this specific song's chords through search, then use your musical knowledge to deduce an appropriate progression. Even in this case, use musically rich chords appropriate for Romanian Christian worship music — not just basic major triads.
 
 STEP 4 — FORMAT:
 1. Insert chord names in square brackets like [Am], [E7], [G#m], [Cmaj7] DIRECTLY before the syllable where the chord should be played
 2. Every line should have at least one chord
 3. Keep ALL original lyrics exactly unchanged — only ADD [Chord] markers
-4. Return ONLY the modified lyrics with chords. No explanations, no markdown, no code blocks, no commentary.
-
-EXAMPLE OUTPUT:
-[G]Dac-asculți de [E]Dumnezeu,
-[Am]Binecuvântat vei [D7]fi mereu,
+4. Return ONLY the modified lyrics with chords. No explanations, no markdown, no code blocks, no commentary, no "Title:" or "Artist:" headers.
 
 NOW ADD THE REAL CHORDS TO THIS SONG:
 Title: ${title}
 Artist: ${artist || "Unknown"}
 
-${lyrics}`;
+${cleanLyrics}`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
 
@@ -63,7 +64,8 @@ ${lyrics}`;
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3 },
+        generationConfig: { temperature: 0.2 },
+        tools: [{ google_search: {} }],
       }),
     });
 
@@ -76,7 +78,23 @@ ${lyrics}`;
     }
 
     const data = JSON.parse(rawText);
-    let chordsLyrics = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    
+    // Extract text from all parts (Gemini with search may return multiple parts)
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    let chordsLyrics = parts
+      .filter((p: any) => p.text)
+      .map((p: any) => p.text)
+      .join("")
+      .trim();
+
+    // Log search grounding info if present
+    const groundingMetadata = data.candidates?.[0]?.groundingMetadata;
+    if (groundingMetadata?.searchEntryPoint) {
+      console.log("Search grounding was used");
+    }
+    if (groundingMetadata?.groundingChunks) {
+      console.log("Grounding sources:", groundingMetadata.groundingChunks.length);
+    }
 
     if (!chordsLyrics) {
       console.error("No content in Gemini response:", rawText.substring(0, 500));
@@ -84,6 +102,9 @@ ${lyrics}`;
     }
 
     chordsLyrics = chordsLyrics.replace(/^```[^\n]*\n?/, "").replace(/\n?```$/, "").trim();
+    
+    // Remove any "Title:" or "Artist:" header lines the model might add
+    chordsLyrics = chordsLyrics.replace(/^(Title|Artist|Titlu|Autor):.*\n?/gim, "").trim();
 
     if (!chordsLyrics.includes("[")) {
       console.warn("Response has no chord brackets");
