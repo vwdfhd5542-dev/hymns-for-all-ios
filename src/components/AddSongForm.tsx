@@ -45,17 +45,28 @@ export function AddSongForm({ onClose }: AddSongFormProps) {
     });
   };
 
-  const handleAutoChords = () => {
+  const handleAutoChords = async () => {
     if (!lyrics.trim()) {
       toast.error(t("addSong.lyricsRequired"));
       return;
     }
-    const result = generateChords(title.trim() || "Song", artist.trim() || "Unknown", lyrics.trim());
-    if (result !== lyrics.trim() && result.includes("[")) {
-      setLyrics(result);
-      toast.success(t("addSong.chordsAdded"));
-    } else {
-      toast.info("Los acordes ya están presentes en la letra.");
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("auto-chords", {
+        body: { title: title.trim() || "Song", artist: artist.trim() || "Unknown", lyrics: lyrics.trim() },
+      });
+      if (error) throw error;
+      if (data?.lyrics && data.lyrics.includes("[")) {
+        setLyrics(data.lyrics);
+        toast.success(t("addSong.chordsAdded"));
+      } else {
+        toast.info("No se pudieron generar acordes.");
+      }
+    } catch (err: any) {
+      console.error("Auto-chords error:", err);
+      toast.error("Error al generar acordes con IA");
+    } finally {
+      setIsGenerating(false);
     }
   };
 

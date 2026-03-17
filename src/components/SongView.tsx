@@ -112,13 +112,25 @@ export function SongView({ song, onBack, isFavorite, onToggleFavorite }: SongVie
     );
   };
 
-  const handleAiChords = () => {
-    const result = generateChords(song.title, song.artist, editLyrics);
-    if (result !== editLyrics && result.includes("[")) {
-      setEditLyrics(result);
-      toast.success(t("addSong.chordsAdded"));
-    } else {
-      toast.info("Los acordes ya están presentes.");
+  const handleAiChords = async () => {
+    if (!editLyrics.trim()) return;
+    setIsGeneratingChords(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("auto-chords", {
+        body: { title: song.title, artist: song.artist, lyrics: editLyrics },
+      });
+      if (error) throw error;
+      if (data?.lyrics && data.lyrics.includes("[")) {
+        setEditLyrics(data.lyrics);
+        toast.success(t("addSong.chordsAdded"));
+      } else {
+        toast.info("No se pudieron generar acordes.");
+      }
+    } catch (err: any) {
+      console.error("Auto-chords error:", err);
+      toast.error("Error al generar acordes con IA");
+    } finally {
+      setIsGeneratingChords(false);
     }
   };
 
