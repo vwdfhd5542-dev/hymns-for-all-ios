@@ -8,7 +8,7 @@ import { TablatureView } from "@/components/TablatureView";
 import { ChevronLeft, Heart, Minus, Plus, Play, Pause, Type, Edit3, Check, X, Mic, MicOff, Sparkles, Globe, Loader2, Guitar } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage, languageNames, languageFlags, Language } from "@/hooks/useLanguage";
-import { generateChords } from "@/utils/autoChords";
+
 import { supabase } from "@/integrations/supabase/client";
 
 interface SongViewProps {
