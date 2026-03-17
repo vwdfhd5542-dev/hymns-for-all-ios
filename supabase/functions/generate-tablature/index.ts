@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
@@ -13,6 +13,11 @@ serve(async (req) => {
 
   try {
     const { lyrics, title, artist, level, mode } = await req.json();
+
+    const GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_API_KEY");
+    if (!GEMINI_KEY) {
+      throw new Error("GOOGLE_GEMINI_API_KEY is not configured");
+    }
 
     const chordRegex = /\[([^\]]+)\]/g;
     const chords = new Set<string>();
@@ -41,12 +46,15 @@ serve(async (req) => {
 - This must sound like a complete solo guitar arrangement of the hymn.`,
     };
 
+    const systemPrompt = `You are a professional guitar transcriber who specializes in Romanian Christian hymns (imnuri creștine).
+You have deep knowledge of Romanian hymn melodies from collections like Speranța, Boanerges, and Elim Harmony.
+You transcribe the REAL melodies faithfully — the melody must match what is actually sung in churches.
+Output ONLY plain text guitar tablature. Never use markdown code blocks. Never add explanations.`;
+
     let prompt: string;
 
     if (mode === "chord") {
-      prompt = `You are an expert classical guitarist and music transcriber.
-
-Generate a fingerpicking tablature pattern for each of these chords used in the hymn "${title}": ${chordList}
+      prompt = `Generate a fingerpicking tablature pattern for each of these chords used in the hymn "${title}": ${chordList}
 
 The hymn "${title}" by ${artist || "Traditional"} has this melody in its lyrics:
 ${pureLyrics.substring(0, 300)}
@@ -75,9 +83,7 @@ D|------|--2---|------|--2---|
 A|--0---|------|--0---|------|
 E|------|------|------|------|`;
     } else {
-      prompt = `You are an expert fingerstyle guitarist who creates accurate transcriptions of known hymns.
-
-Create a complete fingerstyle guitar tablature for this hymn:
+      prompt = `Create a complete fingerstyle guitar tablature for this hymn:
 
 Title: "${title}"
 Artist: ${artist || "Traditional Romanian hymn"}
@@ -115,53 +121,41 @@ A|--0-------|------2---|--0-------|--3-------|
 E|----------|----------|----------|----------|`;
     }
 
+    const fullPrompt = `${systemPrompt}\n\n${prompt}`;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 55000);
 
     try {
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const response = await fetch(url, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
-          model: "google/gemini-2.5-pro",
-          messages: [
-            {
-              role: "system",
-              content: `You are a professional guitar transcriber who specializes in Romanian Christian hymns (imnuri creștine).
-You have deep knowledge of Romanian hymn melodies from collections like Speranța, Boanerges, and Elim Harmony.
-You transcribe the REAL melodies faithfully — the melody must match what is actually sung in churches.
-Output ONLY plain text guitar tablature. Never use markdown code blocks. Never add explanations.`
-            },
-            { role: "user", content: prompt }
-          ],
-          temperature: 0.2,
+          contents: [{ parts: [{ text: fullPrompt }] }],
+          generationConfig: { temperature: 0.2 },
         }),
       });
 
       clearTimeout(timeoutId);
 
+      const rawText = await response.text();
+      console.log("Gemini status:", response.status);
+
       if (!response.ok) {
+        console.error("Gemini error:", rawText.substring(0, 500));
         if (response.status === 429) {
           return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
             status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        if (response.status === 402) {
-          return new Response(JSON.stringify({ error: "Payment required" }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        const text = await response.text();
-        console.error("AI gateway error:", response.status, text);
-        throw new Error("AI gateway error");
+        throw new Error(`Gemini API error: ${response.status}`);
       }
 
-      const data = await response.json();
-      let tablature = data.choices?.[0]?.message?.content?.trim() || "";
+      const data = JSON.parse(rawText);
+      let tablature = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
       tablature = tablature.replace(/```[a-z]*\n?/g, "").replace(/```$/g, "").trim();
 
       return new Response(JSON.stringify({ tablature }), {
