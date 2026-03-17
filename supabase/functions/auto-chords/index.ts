@@ -43,7 +43,7 @@ Artist: ${artist || "Unknown"}
 
 ${lyrics}`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${GEMINI_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
 
     const response = await fetch(url, {
       method: "POST",
@@ -70,7 +70,6 @@ ${lyrics}`;
       throw new Error("Gemini did not return content");
     }
 
-    // Strip markdown code blocks if wrapped
     chordsLyrics = chordsLyrics.replace(/^```[^\n]*\n?/, "").replace(/\n?```$/, "").trim();
 
     if (!chordsLyrics.includes("[")) {
