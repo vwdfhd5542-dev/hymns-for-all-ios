@@ -19,25 +19,38 @@ serve(async (req) => {
       throw new Error("GOOGLE_GEMINI_API_KEY is not configured");
     }
 
-    const prompt = `You are an expert musician. Your task: add guitar chords to the following song lyrics.
+    const prompt = `You are an expert musician specializing in Romanian Christian hymns (imnuri creștine). Your task: add the REAL, accurate guitar chords to the following song lyrics.
 
-INSTRUCTIONS:
-1. Insert chord names in square brackets like [Am], [C], [G7] DIRECTLY before the syllable where the chord should be played
-2. Use standard chord notation: C, Dm, Em, F, G, Am, Bm, C#m, G7, Cmaj7, etc.
-3. Choose chords that fit a typical harmonic progression for this style of music
-4. Every line should have at least one chord
-5. Keep ALL original lyrics exactly unchanged - only ADD [Chord] markers
-6. Return ONLY the modified lyrics with chords. No explanations, no markdown, no code blocks.
+CRITICAL INSTRUCTIONS — FOLLOW IN ORDER:
 
-EXAMPLE INPUT:
-Aleluia, slavă Domnului,
-Aleluia, slavă Regelui,
+STEP 1 — MANDATORY RESEARCH:
+Before generating ANY chords, you MUST recall or search your training data for the REAL chord progression of this specific song. Check your knowledge of:
+- "Resurse Creștine" (resurse-crestine.ro) chord charts
+- Popular YouTube performances and tutorials of this exact hymn
+- Romanian Christian songbooks: Speranța, Boanerges, Eldad, Elim Harmony
+- Any known published chord sheet for "${title}" by "${artist || "Unknown"}"
+If you have seen this song's chords in your training data, USE THOSE EXACT CHORDS. Do not simplify or substitute them.
+
+STEP 2 — PRIORITIZE THE REAL VERSION:
+- If the song is known to use specific chords (e.g., E7, Am, D7, G#m, Cmaj7), you MUST use them exactly as they appear in the real version.
+- Do NOT replace rich chords with simplified versions. If the original uses E7, do NOT replace it with E. If it uses Am7, keep Am7.
+- The harmonic richness of the original arrangement must be preserved: dominant 7ths, minor 7ths, diminished, augmented — whatever the real song uses.
+- Example: "Dac-asculți de Dumnezeu" uses G → E → Am progression. If you know this, use it exactly.
+
+STEP 3 — ONLY IF UNKNOWN:
+If and ONLY if you have absolutely no knowledge of this specific song's chords, then analyze the melody and lyrics to deduce an appropriate progression that fits the style of Romanian Christian worship music. Even in this case, use musically rich chords — not just major triads.
+
+STEP 4 — FORMAT:
+1. Insert chord names in square brackets like [Am], [E7], [G#m], [Cmaj7] DIRECTLY before the syllable where the chord should be played
+2. Every line should have at least one chord
+3. Keep ALL original lyrics exactly unchanged — only ADD [Chord] markers
+4. Return ONLY the modified lyrics with chords. No explanations, no markdown, no code blocks, no commentary.
 
 EXAMPLE OUTPUT:
-[E]Aleluia, [B]slavă Domnului,
-[C#m]Aleluia, [A]slavă Regelui,
+[G]Dac-asculți de [E]Dumnezeu,
+[Am]Binecuvântat vei [D7]fi mereu,
 
-NOW ADD CHORDS TO THIS SONG:
+NOW ADD THE REAL CHORDS TO THIS SONG:
 Title: ${title}
 Artist: ${artist || "Unknown"}
 
