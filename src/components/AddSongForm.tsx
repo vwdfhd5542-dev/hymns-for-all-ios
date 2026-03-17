@@ -145,10 +145,10 @@ export function AddSongForm({ onClose }: AddSongFormProps) {
         <div className="flex-1">
           <div className="flex items-center justify-between mb-1">
             <label className="text-xs text-muted-foreground font-medium">{t("addSong.lyrics")}</label>
-            <button onClick={handleAutoChords} disabled={!lyrics.trim()}
+            <button onClick={handleAutoChords} disabled={isGenerating || !lyrics.trim()}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/15 text-primary text-xs font-semibold disabled:opacity-40 transition-all active:scale-95">
-              <Sparkles size={13} />
-              {t("addSong.aiChords")}
+              {isGenerating ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+              {isGenerating ? t("addSong.generating") : t("addSong.aiChords")}
             </button>
           </div>
           <p className="text-[11px] text-muted-foreground/70 mb-2">
