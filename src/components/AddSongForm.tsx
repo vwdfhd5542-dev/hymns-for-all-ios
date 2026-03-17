@@ -4,7 +4,7 @@ import { useAddSong, useSongs } from "@/hooks/useSongs";
 import { useCollections, useAddCollection } from "@/hooks/useCollections";
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/useLanguage";
-import { generateChords } from "@/utils/autoChords";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AddSongFormProps {
   onClose: () => void;
