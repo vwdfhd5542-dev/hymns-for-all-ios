@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { X, Sparkles, Plus } from "lucide-react";
+import { X, Sparkles, Plus, Loader2 } from "lucide-react";
 import { useAddSong, useSongs } from "@/hooks/useSongs";
 import { useCollections, useAddCollection } from "@/hooks/useCollections";
 import { toast } from "sonner";
