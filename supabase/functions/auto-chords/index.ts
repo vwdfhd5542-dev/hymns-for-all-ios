@@ -133,7 +133,7 @@ SECTIONS:
     const groqPrompt = `You are a precise chord formatter. You have TWO inputs:
 
 INPUT 1 — CHORD DATA (found from real online sources):
-${chordData}
+${finalChordData}
 
 INPUT 2 — CLEAN LYRICS:
 ${cleanLyrics}
