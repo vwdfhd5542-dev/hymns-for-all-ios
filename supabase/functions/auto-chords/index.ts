@@ -80,19 +80,50 @@ Song: "${title}" by ${artist || "Unknown"}`;
 
     // Log grounding info
     const grounding = geminiData.candidates?.[0]?.groundingMetadata;
-    if (grounding?.groundingChunks) {
+    let usedSearch = false;
+    if (grounding?.groundingChunks?.length) {
+      usedSearch = true;
       console.log("Grounding sources:", grounding.groundingChunks.length);
       grounding.groundingChunks.forEach((chunk: any, i: number) => {
         if (chunk.web) console.log(`  Source ${i + 1}: ${chunk.web.uri}`);
       });
+    } else {
+      console.log("No grounding sources found — Gemini used internal knowledge");
     }
 
-    if (!chordData || chordData.includes("NOT_FOUND")) {
-      console.warn("Gemini could not find chords online for:", title);
-      throw new Error("NO_CHORDS_FOUND_ONLINE");
+    console.log("Gemini raw response:", chordData.substring(0, 500));
+
+    // If Gemini explicitly says not found OR returns empty, use fallback
+    const notFound = !chordData || chordData.trim().length < 20 || /^NOT_FOUND$/m.test(chordData.trim());
+    
+    let finalChordData = chordData;
+    if (notFound) {
+      console.log("Search didn't find specific chords, using Gemini knowledge fallback...");
+      // Fallback: Ask Gemini WITHOUT search to use its musical knowledge
+      const fallbackPrompt = `You are an expert in Romanian Christian hymns (Speranța, Boanerges, Elim Harmony collections).
+Give me the chord progression for "${title}" by ${artist || "Unknown"}.
+List the KEY and the chords for each line/section. Use rich chords (7ths, minor, etc.) — do NOT simplify.
+If you know this specific hymn, use its real chords. Output format:
+KEY: [key]
+SECTIONS:
+[chords above lyrics lines]`;
+
+      const fallbackResp = await fetch(geminiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: fallbackPrompt }] }],
+          generationConfig: { temperature: 0.2 },
+        }),
+      });
+      if (fallbackResp.ok) {
+        const fbData = JSON.parse(await fallbackResp.text());
+        finalChordData = fbData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || chordData;
+        console.log("Fallback chord data:", finalChordData.substring(0, 300));
+      }
     }
 
-    console.log("Step 1 complete. Chord data found:", chordData.substring(0, 300));
+    console.log("Step 1 complete.");
 
     // ═══════════════════════════════════════════════════════════════
     // STEP 2: GROQ — Format chords into lyrics faithfully
